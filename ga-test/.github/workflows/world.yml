@@ -1,0 +1,17 @@
+name: World
+
+on:
+  workflow_run:
+    workflows: ["Hello Workflow"]
+    types:
+      - completed
+
+jobs:
+  say-world:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say World
+        run: |
+          echo "world"
+          sleep 10
