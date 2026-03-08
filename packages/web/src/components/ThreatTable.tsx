@@ -42,10 +42,25 @@ export function ThreatTable({ threats }: Props) {
                 <span className="text-gray-300 text-sm">{t.threat}</span>
               </div>
               <p className="text-gray-500 text-xs mt-1.5 leading-relaxed">{t.mitigation}</p>
-              <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
                 <span className={`text-xs ${LIKELIHOOD_COLOR[t.likelihood] ?? 'text-gray-500'}`}>
                   {t.likelihood} likelihood
                 </span>
+                {t.strideCategory && (
+                  <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full">
+                    {t.strideCategory}
+                  </span>
+                )}
+                {t.dreadScore !== undefined && (
+                  <span className="text-xs text-gray-500">
+                    DREAD: <span className={t.dreadScore >= 7 ? 'text-red-400' : t.dreadScore >= 4 ? 'text-yellow-400' : 'text-green-400'}>
+                      {t.dreadScore}/10
+                    </span>
+                  </span>
+                )}
+                {t.owaspCategory && (
+                  <span className="text-xs text-blue-400 font-mono">{t.owaspCategory.split('–')[0].trim()}</span>
+                )}
                 <code className="text-xs text-indigo-400 font-mono">{t.codeEvidence}</code>
               </div>
             </div>
