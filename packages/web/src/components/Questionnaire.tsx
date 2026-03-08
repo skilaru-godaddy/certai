@@ -29,6 +29,19 @@ export function Questionnaire({ items }: Props) {
               <span className={`text-sm flex-1 ${isOpen ? 'text-white' : 'text-gray-300'}`}>
                 {item.question}
               </span>
+              {item.confidence && (
+                <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 mr-1 ${
+                  item.confidence === 'Confirmed'
+                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                    : item.confidence === 'Inferred'
+                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+                    : 'bg-red-500/10 text-red-300 border-red-500/30'
+                }`}>
+                  {item.confidence === 'Confirmed' ? '✓ Confirmed' :
+                   item.confidence === 'Inferred' ? '~ Inferred' :
+                   '? Verify'}
+                </span>
+              )}
               <span className={`text-xs transition-transform duration-150 shrink-0
                 ${isOpen ? 'rotate-180 text-indigo-400' : 'text-gray-600'}`}>
                 ▼
