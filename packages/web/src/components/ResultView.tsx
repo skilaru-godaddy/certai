@@ -225,6 +225,35 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
               </span>
             </h3>
             <ThreatTable threats={result.threats} />
+
+            {/* OWASP Top 10 breakdown */}
+            {result.threats.some(t => t.owaspCategory) && (
+              <div className="mt-6">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">OWASP Top 10 Coverage</h4>
+                <div className="space-y-1.5">
+                  {Object.entries(
+                    result.threats
+                      .filter(t => t.owaspCategory)
+                      .reduce<Record<string, number>>((acc, t) => {
+                        const cat = t.owaspCategory.split('–')[0].trim();
+                        acc[cat] = (acc[cat] ?? 0) + 1;
+                        return acc;
+                      }, {})
+                  ).sort(([, a], [, b]) => b - a).map(([cat, count]) => (
+                    <div key={cat} className="flex items-center gap-3">
+                      <code className="text-xs text-blue-400 font-mono w-10 shrink-0">{cat}</code>
+                      <div className="flex-1 bg-gray-800 rounded-full h-1.5">
+                        <div
+                          className="bg-blue-500 rounded-full h-1.5"
+                          style={{ width: `${Math.min(100, count * 20)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-600 w-4 text-right">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
