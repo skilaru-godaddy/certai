@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AnalysisResult } from '../types.js';
+import type { AnalysisResult, SbomComponent } from '../types.js';
 import { MermaidDiagram } from './MermaidDiagram.js';
 import { ThreatTable } from './ThreatTable.js';
 import { Questionnaire } from './Questionnaire.js';
@@ -11,7 +11,7 @@ const CAT_STYLES: Record<string, { badge: string; bar: string; label: string }> 
   'CAT 3': { badge: 'bg-green-500/20 text-green-300 border-green-500/40',  bar: 'bg-green-500',  label: 'Low' },
 };
 
-const TABS = ['Overview', 'Architecture', 'Threats', 'Questionnaire', 'IRP'] as const;
+const TABS = ['Overview', 'Architecture', 'Threats', 'Questionnaire', 'IRP', 'Dependencies', 'AI Reasoning'] as const;
 type Tab = typeof TABS[number];
 
 interface Props {
@@ -19,6 +19,33 @@ interface Props {
   repoUrl: string;
   onPublish: (space: string) => void;
   publishing: boolean;
+}
+
+function downloadSbom(components: SbomComponent[], repoUrl: string) {
+  const repoName = repoUrl.split('/').pop() ?? 'repo';
+  const sbom = {
+    bomFormat: 'CycloneDX',
+    specVersion: '1.4',
+    version: 1,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      tools: [{ vendor: 'GoDaddy', name: 'CertAI', version: '2.0' }],
+      component: { type: 'application', name: repoName },
+    },
+    components: components.map((c) => ({
+      type: 'library',
+      name: c.name,
+      version: c.version,
+      purl: c.purl,
+    })),
+  };
+  const blob = new Blob([JSON.stringify(sbom, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${repoName}-sbom.cdx.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
@@ -29,6 +56,8 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
   const repoName = repoUrl.split('/').pop() ?? repoUrl;
 
   const highCount = result.threats.filter(t => t.impact === 'Critical' || t.impact === 'High').length;
+  const cveCount = result.cveScanResults?.length ?? 0;
+  const score = result.securityScore ?? 0;
 
   return (
     <div className="space-y-6">
@@ -54,7 +83,7 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
         </div>
 
         {/* Stats row */}
-        <div className="border-t border-gray-800 grid grid-cols-3 divide-x divide-gray-800">
+        <div className="border-t border-gray-800 grid grid-cols-4 divide-x divide-gray-800">
           <div className="px-6 py-4 text-center">
             <p className="text-2xl font-bold text-white">{result.threats.length}</p>
             <p className="text-xs text-gray-500 mt-0.5">threats found</p>
@@ -64,14 +93,28 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
             <p className="text-xs text-gray-500 mt-0.5">high / critical</p>
           </div>
           <div className="px-6 py-4 text-center">
+            <p className={`text-2xl font-bold ${cveCount > 0 ? 'text-orange-400' : 'text-green-400'}`}>{cveCount}</p>
+            <p className="text-xs text-gray-500 mt-0.5">CVEs found</p>
+          </div>
+          <div className="px-6 py-4 text-center">
             <p className="text-2xl font-bold text-white">{result.questionnaire.length}/29</p>
             <p className="text-xs text-gray-500 mt-0.5">questions answered</p>
           </div>
         </div>
+
+        {/* Time saved banner */}
+        <div className="border-t border-gray-800 px-6 py-3 bg-indigo-950/20 flex items-center justify-between">
+          <span className="text-xs text-indigo-400">
+            Manual security certification averages <strong>61 days</strong> at GoDaddy
+          </span>
+          <span className="text-xs text-indigo-300 font-semibold">
+            CertAI completed this analysis in seconds
+          </span>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-900/50 p-1 rounded-xl border border-gray-800">
+      <div className="flex gap-1 bg-gray-900/50 p-1 rounded-xl border border-gray-800 flex-wrap">
         {TABS.map((tab) => (
           <button
             key={tab}
@@ -88,6 +131,11 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
                 {highCount}
               </span>
             )}
+            {tab === 'Dependencies' && cveCount > 0 && (
+              <span className="ml-1.5 text-xs bg-orange-500/20 text-orange-400 rounded-full px-1.5 py-0.5">
+                {cveCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -96,6 +144,31 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
         {activeTab === 'Overview' && (
           <div className="space-y-6">
+            {/* Security Score ring */}
+            <div className="flex items-center gap-6 bg-gray-950 rounded-xl p-5 border border-gray-800">
+              <div className="relative w-20 h-20 shrink-0">
+                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1f2937" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none"
+                    stroke={score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="3"
+                    strokeDasharray={`${score} 100`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-white">
+                  {score}
+                </span>
+              </div>
+              <div>
+                <p className="text-white font-semibold">Security Score</p>
+                <p className="text-gray-500 text-sm mt-0.5">
+                  {score >= 70 ? 'Good security posture' : score >= 40 ? 'Needs improvement' : 'Critical issues require attention'}
+                </p>
+              </div>
+            </div>
+
             <div>
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Risk Summary</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -174,6 +247,106 @@ export function ResultView({ result, repoUrl, onPublish, publishing }: Props) {
                             bg-gray-950 border border-gray-800 rounded-xl p-5 max-h-[600px] overflow-y-auto">
               {result.irpDraft}
             </pre>
+          </div>
+        )}
+
+        {activeTab === 'Dependencies' && (
+          <div className="space-y-6">
+            {/* CVE Findings */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                CVE Findings
+                <span className="ml-2 normal-case font-normal text-gray-600">from OSV API + Dependabot</span>
+              </h3>
+              {(!result.cveScanResults || result.cveScanResults.length === 0) ? (
+                <div className="text-center py-8 text-gray-600">
+                  <p className="text-3xl mb-2">✅</p>
+                  <p>No known CVEs found in parsed dependencies.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {result.cveScanResults.map((c, i) => (
+                    <div key={i} className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <span className={`text-xs font-bold border px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${
+                          c.severity === 'Critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                          c.severity === 'High' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                          c.severity === 'Medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                          'bg-green-500/20 text-green-400 border-green-500/30'
+                        }`}>{c.severity}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <code className="text-white font-mono text-sm">{c.packageName}@{c.version}</code>
+                            <span className="text-indigo-400 text-xs font-mono">{c.vulnId}</span>
+                          </div>
+                          <p className="text-gray-400 text-xs mt-1">{c.summary}</p>
+                          {c.fixedVersion && (
+                            <p className="text-green-400 text-xs mt-1">Fix: upgrade to {c.fixedVersion}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Secret Findings */}
+            {result.secretScanFindings && result.secretScanFindings.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-4">
+                  Potential Secrets Detected
+                </h3>
+                <div className="space-y-2">
+                  {result.secretScanFindings.map((s, i) => (
+                    <div key={i} className="bg-red-950/20 border border-red-800/40 rounded-xl p-4">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">
+                          {s.type}
+                        </span>
+                        <code className="text-red-300 font-mono text-xs">{s.path}:{s.line}</code>
+                        <code className="text-gray-600 font-mono text-xs ml-auto">{s.preview}</code>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SBOM Download */}
+            {result.sbom && result.sbom.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                  SBOM — {result.sbom.length} components
+                </h3>
+                <button
+                  onClick={() => downloadSbom(result.sbom, repoUrl)}
+                  className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm
+                             px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+                >
+                  Download CycloneDX JSON
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'AI Reasoning' && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+              Claude's Extended Thinking
+              <span className="ml-2 normal-case font-normal text-gray-600">
+                {result.thinkingText ? `${(result.thinkingText.length / 1000).toFixed(1)}k chars` : 'Not available'}
+              </span>
+            </h3>
+            {result.thinkingText ? (
+              <pre className="text-xs text-gray-500 bg-gray-950 border border-gray-800 rounded-xl p-5
+                              max-h-[600px] overflow-y-auto whitespace-pre-wrap leading-relaxed font-mono">
+                {result.thinkingText}
+              </pre>
+            ) : (
+              <p className="text-gray-600 text-sm">Thinking text was not captured for this analysis.</p>
+            )}
           </div>
         )}
       </div>
