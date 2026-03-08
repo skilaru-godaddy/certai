@@ -91,16 +91,13 @@ export default function App() {
 
           <form onSubmit={handleAnalyze} className="flex gap-3">
             <div className="flex-1 relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-mono">
-                github.secureserver.net/
-              </span>
               <input
                 type="text"
-                value={repoUrl.replace(/^https?:\/\/github\.secureserver\.net\//, '').replace(/^github\.secureserver\.net\//, '')}
-                onChange={(e) => setRepoUrl(`github.secureserver.net/${e.target.value}`)}
-                placeholder="org/repo-name"
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-52 pr-4 py-4
-                           text-white placeholder-gray-600 text-sm
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="https://github.secureserver.net/org/repo-name"
+                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-4
+                           text-white placeholder-gray-600 text-sm font-mono
                            focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
                            transition-colors"
               />
