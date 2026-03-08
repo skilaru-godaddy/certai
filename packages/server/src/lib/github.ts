@@ -106,8 +106,30 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
     })
   );
 
-  // Human-readable tree (top 60 paths)
-  const treeText = allPaths.slice(0, 60).join('\n');
+  // Human-readable tree (up to 500 paths for Claude triage pass)
+  const treeText = allPaths.slice(0, 500).join('\n');
 
   return { ref, allPaths, priorityFiles, treeText };
+}
+
+export async function fetchSpecificFiles(ref: RepoRef, paths: string[]): Promise<RepoFile[]> {
+  const pat = process.env.GITHUB_PAT!;
+  const baseUrl = process.env.GITHUB_API_URL!;
+  const octokit = createGitHubClient(pat, baseUrl);
+
+  return Promise.all(
+    paths.map(async (path): Promise<RepoFile> => {
+      try {
+        const { data } = await octokit.repos.getContent({ owner: ref.owner, repo: ref.repo, path });
+        if (Array.isArray(data) || data.type !== 'file') {
+          return { path, content: '[directory or non-file]', sizeBytes: 0 };
+        }
+        const content = Buffer.from(data.content, 'base64').toString('utf-8');
+        return { path, content: content.slice(0, 8000), sizeBytes: data.size };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { path, content: `[fetch error: ${msg}]`, sizeBytes: 0 };
+      }
+    })
+  );
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import { fetchRepoSnapshot } from './github.js';
-import { streamAnalysis } from './claude.js';
+import { fetchRepoSnapshot, fetchSpecificFiles } from './github.js';
+import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
 import type { RepoSnapshot, CveFinding, SecretFinding, SbomComponent } from '../types.js';
 
@@ -115,13 +115,28 @@ async function runAnalysis(jobId: string): Promise<void> {
     notify(job, { phase: 'discovery', message: 'Discovering repo structure...' });
     const ref = parseRepoUrl(job.repoUrl);
 
-    // Phase 2: File fetching
-    notify(job, { phase: 'fetching', message: 'Fetching security-relevant files...' });
+    // Phase 2: File fetching — two-pass triage
+    notify(job, { phase: 'fetching', message: 'Fetching file tree...' });
     const snapshot = await fetchRepoSnapshot(ref);
     notify(job, {
       phase: 'fetching',
-      message: `Loaded ${snapshot.priorityFiles.length} files (${snapshot.allPaths.length} total in repo)`,
+      message: `Found ${snapshot.allPaths.length} files. Running security triage...`,
     });
+
+    const triagedPaths = await triageFiles(snapshot.allPaths, snapshot.treeText);
+    if (triagedPaths.length > 0) {
+      const triagedFiles = await fetchSpecificFiles(ref, triagedPaths);
+      snapshot.priorityFiles = triagedFiles;
+      notify(job, {
+        phase: 'fetching',
+        message: `Loaded ${triagedFiles.length} files selected by Claude security triage`,
+      });
+    } else {
+      notify(job, {
+        phase: 'fetching',
+        message: `Loaded ${snapshot.priorityFiles.length} files (triage fallback)`,
+      });
+    }
 
     // Phase 3+4: Claude streaming analysis
     let rawJson = '';
