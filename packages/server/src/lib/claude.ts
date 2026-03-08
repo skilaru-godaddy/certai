@@ -48,7 +48,10 @@ Return a valid JSON object with exactly these fields:
       "likelihood": "Low" | "Medium" | "High",
       "impact": "Low" | "Medium" | "High" | "Critical",
       "mitigation": "string",
-      "codeEvidence": "path/to/file.ts:lineHint"
+      "codeEvidence": "path/to/file.ts:lineHint",
+      "strideCategory": "Spoofing" | "Tampering" | "Repudiation" | "Information Disclosure" | "Denial of Service" | "Elevation of Privilege",
+      "dreadScore": <number 1-10, composite average of Damage+Reproducibility+Exploitability+AffectedUsers+Discoverability>,
+      "owaspCategory": "<OWASP Top 10 2021 category, e.g. 'A01:2021 – Broken Access Control'>"
     }
   ],
   "questionnaire": [
@@ -56,10 +59,12 @@ Return a valid JSON object with exactly these fields:
       "id": 1,
       "question": "string",
       "answer": "string",
-      "evidence": "path/to/file.ts:lineHint or N/A"
+      "evidence": "path/to/file.ts:lineHint or N/A",
+      "confidence": "Confirmed" | "Inferred" | "Needs Manual Verification"
     }
   ],
-  "irpDraft": "string — markdown incident response plan draft"
+  "irpDraft": "string — markdown incident response plan draft",
+  "securityScore": <number 0-100. 100=perfect security posture. Deduct: 30 pts for CAT 0, 20 for CAT 1, 10 for CAT 2; 5 pts per Critical threat; 3 per High; 10 pts if any "Needs Manual Verification" answers for auth/secrets questions (Q10, Q14, Q15, Q16, Q20, Q21); bonus +10 if no high/critical threats>
 }
 \`\`\`
 
@@ -108,6 +113,33 @@ If you cannot determine from the code, state what would need to be manually veri
 - Show all major components (services, databases, external dependencies)
 - Label connections with protocols (HTTPS, OAuth2, SQL, etc.)
 - Keep it to 10-15 nodes max for readability
+
+## STRIDE Categories:
+Map each threat to exactly one STRIDE category based on the primary attack vector.
+
+## DREAD Scoring (1-10 each component, return composite average rounded to 1 decimal):
+- Damage: How bad would a successful attack be?
+- Reproducibility: How easy to reproduce the attack?
+- Exploitability: How much skill does an attacker need?
+- Affected users: What percentage of users would be impacted?
+- Discoverability: How easy to find the vulnerability?
+
+## OWASP Top 10 2021 Categories:
+A01:2021 – Broken Access Control
+A02:2021 – Cryptographic Failures
+A03:2021 – Injection
+A04:2021 – Insecure Design
+A05:2021 – Security Misconfiguration
+A06:2021 – Vulnerable and Outdated Components
+A07:2021 – Identification and Authentication Failures
+A08:2021 – Software and Data Integrity Failures
+A09:2021 – Security Logging and Monitoring Failures
+A10:2021 – Server-Side Request Forgery (SSRF)
+
+## Questionnaire confidence rules:
+- "Confirmed": you can point to a specific line of code
+- "Inferred": you're reasoning from project structure or framework choices
+- "Needs Manual Verification": the code alone cannot answer this question
 
 Return ONLY the JSON object, no markdown fences, no explanation.`;
 }
