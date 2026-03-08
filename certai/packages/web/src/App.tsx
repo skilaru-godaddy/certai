@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AnalysisStream } from './components/AnalysisStream.js';
+import { ResultView } from './components/ResultView.js';
 import type { AnalysisResult } from './types.js';
 
 export default function App() {
@@ -76,12 +77,12 @@ export default function App() {
       )}
 
       {result && (
-        <div className="text-green-400 font-semibold">
-          ✅ Analysis complete — result rendering coming in Task 8
-          <pre className="text-xs text-gray-500 mt-2">
-            {JSON.stringify({ riskCategory: result.riskCategory, threats: result.threats?.length }, null, 2)}
-          </pre>
-        </div>
+        <ResultView
+          result={result}
+          repoUrl={repoUrl}
+          onPublish={handlePublish}
+          publishing={publishing}
+        />
       )}
     </div>
   );
