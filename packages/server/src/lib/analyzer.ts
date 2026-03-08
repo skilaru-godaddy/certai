@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import { join } from 'path';
 import { fetchRepoSnapshot, fetchSpecificFiles, fetchDependabotAlerts } from './github.js';
 import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
@@ -6,7 +8,44 @@ import { parseDependencies, scanWithOsv } from './osv.js';
 import { scanForSecrets } from './secrets.js';
 import type { RepoSnapshot, CveFinding, SecretFinding, SbomComponent } from '../types.js';
 
-// ─── Job store (in-memory for prototype) ────────────────────────────────────
+// ─── Job persistence ──────────────────────────────────────────────────────────
+
+const JOBS_DIR = join(process.cwd(), '.certai-jobs');
+if (!existsSync(JOBS_DIR)) mkdirSync(JOBS_DIR, { recursive: true });
+
+function persistJob(job: Job): void {
+  if (job.status !== JobStatus.Done) return;
+  try {
+    const data = {
+      id: job.id,
+      repoUrl: job.repoUrl,
+      status: job.status,
+      createdAt: job.createdAt,
+      result: job.result,
+    };
+    writeFileSync(join(JOBS_DIR, `${job.id}.json`), JSON.stringify(data, null, 2));
+  } catch { /* non-fatal */ }
+}
+
+function loadPersistedJobs(): void {
+  if (!existsSync(JOBS_DIR)) return;
+  try {
+    const files = readdirSync(JOBS_DIR).filter((f) => f.endsWith('.json'));
+    for (const file of files) {
+      const data = JSON.parse(readFileSync(join(JOBS_DIR, file), 'utf-8'));
+      const job: Job = {
+        ...data,
+        createdAt: new Date(data.createdAt),
+        phases: [],
+        error: null,
+        subscribers: new Set(),
+      };
+      jobs.set(job.id, job);
+    }
+  } catch { /* non-fatal */ }
+}
+
+// ─── Job store ────────────────────────────────────────────────────────────────
 
 export enum JobStatus {
   Pending = 'pending',
@@ -72,6 +111,7 @@ export interface QuestionnaireItem {
 export type { CveFinding, SecretFinding, SbomComponent };
 
 const jobs = new Map<string, Job>();
+loadPersistedJobs();
 
 export function createJob(repoUrl: string): Job {
   const job: Job = {
@@ -193,6 +233,7 @@ async function runAnalysis(jobId: string): Promise<void> {
     job.result = parsed;
     job.status = JobStatus.Done;
     notify(job, { phase: 'done', message: 'Analysis complete', data: parsed });
+    persistJob(job);
   } catch (err) {
     job.status = JobStatus.Error;
     job.error = String(err);
