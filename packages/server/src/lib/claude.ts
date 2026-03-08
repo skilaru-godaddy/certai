@@ -144,6 +144,53 @@ A10:2021 – Server-Side Request Forgery (SSRF)
 Return ONLY the JSON object, no markdown fences, no explanation.`;
 }
 
+// ─── Two-pass file triage ─────────────────────────────────────────────────────
+
+export async function triageFiles(
+  allPaths: string[],
+  treeText: string
+): Promise<string[]> {
+  const client = createClaudeClient();
+
+  const prompt = `You are a security engineer performing a security certification review.
+Below is the full file tree of a repository. Select up to 30 file paths that are MOST relevant for a security review.
+
+Prioritize in order:
+1. Authentication, authorization, middleware files
+2. Route handlers, API controllers, GraphQL resolvers
+3. Database models, migrations, ORM schemas
+4. Infrastructure: Dockerfile, docker-compose, Terraform (.tf), CDK, CloudFormation
+5. Dependency manifests: package.json, requirements.txt, go.mod, pom.xml, build.gradle, Cargo.toml
+6. Configuration: .env.example, nginx.conf, k8s manifests
+7. CI/CD: .github/workflows, Jenkinsfile
+8. README.md (always include if present)
+
+Full file tree:
+${treeText}
+
+Return ONLY a JSON array of file paths, nothing else. Example:
+["src/auth/middleware.ts", "Dockerfile", "package.json"]`;
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+
+  try {
+    const jsonText = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const selected = JSON.parse(jsonText) as string[];
+    return selected.filter((p) => allPaths.includes(p)).slice(0, 30);
+  } catch {
+    return [];
+  }
+}
+
 // ─── Streaming analysis ───────────────────────────────────────────────────────
 
 export interface AnalysisChunk {
