@@ -15,43 +15,43 @@ export function Questionnaire({ items }: Props) {
         return (
           <div
             key={item.id}
-            className={`border rounded-xl overflow-hidden transition-colors
-              ${isOpen ? 'border-indigo-800/60 bg-indigo-950/20' : 'border-gray-800 bg-gray-950 hover:border-gray-700'}`}
+            className={`border rounded-2xl overflow-hidden transition-colors
+              ${isOpen ? 'border-[#111] bg-[#F5F7F8]' : 'border-[#D4DBE0] bg-white hover:border-[#999]'}`}
           >
             <button
               onClick={() => setExpanded(isOpen ? null : item.id)}
               className="w-full text-left px-4 py-3 flex items-center gap-3"
             >
-              <span className={`text-xs font-mono w-7 shrink-0 text-right
-                ${isOpen ? 'text-indigo-400' : 'text-gray-600'}`}>
+              <span className={`text-[12px] font-mono w-7 shrink-0 text-right
+                ${isOpen ? 'text-[#111]' : 'text-[#999]'}`}>
                 {item.id.toString().padStart(2, '0')}
               </span>
-              <span className={`text-sm flex-1 ${isOpen ? 'text-white' : 'text-gray-300'}`}>
+              <span className={`text-[14px] flex-1 ${isOpen ? 'text-[#111]' : 'text-[#444]'}`}>
                 {item.question}
               </span>
               {item.confidence && (
-                <span className={`text-xs px-2 py-0.5 rounded-full border shrink-0 mr-1 ${
+                <span className={`text-[11px] px-2 py-0.5 rounded-[6px] border shrink-0 mr-1 font-medium ${
                   item.confidence === 'Confirmed'
-                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                    ? 'bg-green-50 text-green-700 border-green-200'
                     : item.confidence === 'Inferred'
-                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-                    : 'bg-red-500/10 text-red-300 border-red-500/30'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
                 }`}>
                   {item.confidence === 'Confirmed' ? '✓ Confirmed' :
                    item.confidence === 'Inferred' ? '~ Inferred' :
                    '? Verify'}
                 </span>
               )}
-              <span className={`text-xs transition-transform duration-150 shrink-0
-                ${isOpen ? 'rotate-180 text-indigo-400' : 'text-gray-600'}`}>
+              <span className={`text-[12px] transition-transform duration-150 shrink-0
+                ${isOpen ? 'rotate-180 text-[#111]' : 'text-[#999]'}`}>
                 ▼
               </span>
             </button>
             {isOpen && (
-              <div className="px-4 pb-4 border-t border-indigo-800/30 pt-3 space-y-2 ml-10">
-                <p className="text-white text-sm leading-relaxed">{item.answer}</p>
+              <div className="px-4 pb-4 border-t border-[#D4DBE0] pt-3 space-y-2 ml-10">
+                <p className="text-[#111] text-[14px] leading-relaxed">{item.answer}</p>
                 {item.evidence && item.evidence !== 'N/A' && (
-                  <code className="block text-indigo-400 font-mono text-xs bg-indigo-950/40 px-3 py-1.5 rounded-lg">
+                  <code className="block text-[#444] font-mono text-[12px] bg-white border border-[#D4DBE0] px-3 py-1.5 rounded-[6px]">
                     {item.evidence}
                   </code>
                 )}

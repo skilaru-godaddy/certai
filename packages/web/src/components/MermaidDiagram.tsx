@@ -3,21 +3,22 @@ import mermaid from 'mermaid';
 
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'dark',
+  theme: 'base',
   themeVariables: {
-    primaryColor: '#4f46e5',
-    primaryTextColor: '#e5e7eb',
-    primaryBorderColor: '#6366f1',
-    lineColor: '#6366f1',
-    secondaryColor: '#1f2937',
-    tertiaryColor: '#111827',
-    background: '#030712',
-    mainBkg: '#111827',
-    nodeBorder: '#374151',
-    clusterBkg: '#1f2937',
-    titleColor: '#f9fafb',
-    edgeLabelBackground: '#1f2937',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    primaryColor: '#F5F7F8',
+    primaryTextColor: '#111111',
+    primaryBorderColor: '#D4DBE0',
+    lineColor: '#444444',
+    secondaryColor: '#ffffff',
+    tertiaryColor: '#F5F7F8',
+    background: '#ffffff',
+    mainBkg: '#F5F7F8',
+    nodeBorder: '#D4DBE0',
+    clusterBkg: '#F5F7F8',
+    titleColor: '#111111',
+    edgeLabelBackground: '#ffffff',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+    fontSize: '13px',
   },
 });
 
@@ -56,9 +57,9 @@ export function MermaidDiagram({ chart }: Props) {
 
   if (error) {
     return (
-      <div className="bg-gray-950 border border-gray-800 rounded-xl p-6 text-center">
-        <p className="text-gray-500 text-sm mb-2">Diagram render error</p>
-        <pre className="text-xs text-gray-600 text-left overflow-auto max-h-32">{chart}</pre>
+      <div className="bg-[#F5F7F8] border border-[#D4DBE0] rounded-2xl p-6 text-center">
+        <p className="text-[#666] text-[14px] mb-2">Diagram render error</p>
+        <pre className="text-[12px] text-[#444] text-left overflow-auto max-h-32 font-mono">{chart}</pre>
       </div>
     );
   }
@@ -66,7 +67,7 @@ export function MermaidDiagram({ chart }: Props) {
   return (
     <div
       ref={ref}
-      className="bg-gray-950 border border-gray-800 rounded-xl p-6
+      className="bg-[#F5F7F8] border border-[#D4DBE0] rounded-2xl p-6
                  flex justify-center min-h-[220px] items-center overflow-x-auto"
     />
   );

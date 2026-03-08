@@ -58,18 +58,20 @@ export default function App() {
   const isAnalyzing = jobId && !result;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      {/* Top nav */}
-      <nav className="border-b border-gray-800 px-6 py-4 flex items-center gap-3">
+    <div className="min-h-screen bg-white text-[#111]">
+      {/* Top nav — GoDaddy Antares style */}
+      <nav className="bg-white border-b border-[#D4DBE0] px-6 py-0 flex items-center" style={{ height: 56 }}>
         <div className="flex items-center gap-2">
-          <span className="text-2xl">🔐</span>
-          <span className="text-xl font-bold text-white tracking-tight">CertAI</span>
+          <div className="w-8 h-8 bg-[#111] rounded-[6px] flex items-center justify-center">
+            <span className="text-white text-sm font-bold">C</span>
+          </div>
+          <span className="text-[15px] font-semibold text-[#111] tracking-tight">CertAI</span>
         </div>
-        <span className="text-gray-600 text-sm hidden sm:block">|</span>
-        <span className="text-gray-500 text-sm hidden sm:block">Security Certification Copilot</span>
-        <div className="ml-auto flex items-center gap-2 text-xs text-gray-600">
+        <span className="mx-3 text-[#D4DBE0] select-none">|</span>
+        <span className="text-[#666] text-[14px] hidden sm:block">Security Certification Copilot</span>
+        <div className="ml-auto flex items-center gap-2 text-[13px] text-[#666]">
           <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-          GoDaddy Internal
+          <span>GoDaddy Internal</span>
         </div>
       </nav>
 
@@ -78,11 +80,11 @@ export default function App() {
         <div className={`transition-all duration-500 ${result ? 'mb-6' : 'mb-16'}`}>
           {!result && (
             <div className="text-center mb-10">
-              <h1 className="text-5xl font-black text-white mb-3 tracking-tight">
+              <h1 className="text-[40px] font-bold text-[#111] mb-3 leading-tight tracking-tight">
                 From repo to cert package<br />
-                <span className="text-indigo-400">in 60 seconds.</span>
+                <span className="text-[#444]">in 60 seconds.</span>
               </h1>
-              <p className="text-gray-400 text-lg max-w-xl mx-auto">
+              <p className="text-[#666] text-[16px] max-w-xl mx-auto leading-relaxed">
                 Paste any internal GitHub repo. CertAI reads your code, generates the full
                 security certification package, and publishes it to Confluence.
               </p>
@@ -90,30 +92,29 @@ export default function App() {
           )}
 
           <form onSubmit={handleAnalyze} className="flex gap-3">
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <input
                 type="text"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
                 placeholder="https://github.secureserver.net/org/repo-name"
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-4
-                           text-white placeholder-gray-600 text-sm font-mono
-                           focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
+                className="w-full bg-white border border-[#D6D6D6] rounded-[6px] px-4 py-3
+                           text-[#111] placeholder-[#999] text-[14px] font-mono
+                           focus:outline-none focus:border-[#111] focus:ring-2 focus:ring-[#111]/10
                            transition-colors"
               />
             </div>
             <button
               type="submit"
               disabled={loading || !repoUrl.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
+              className="bg-[#111] hover:bg-[#333] active:bg-[#000]
                          disabled:opacity-40 disabled:cursor-not-allowed
-                         text-white font-semibold px-7 py-4 rounded-xl
-                         transition-all duration-150 whitespace-nowrap text-sm
-                         shadow-lg shadow-indigo-900/40"
+                         text-white font-medium px-6 py-3 rounded-[6px]
+                         transition-all duration-150 whitespace-nowrap text-[14px]"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   Starting...
                 </span>
               ) : (
@@ -123,7 +124,7 @@ export default function App() {
           </form>
 
           {!result && !isAnalyzing && (
-            <p className="text-center text-xs text-gray-600 mt-4">
+            <p className="text-center text-[13px] text-[#999] mt-4">
               Uses Claude Sonnet 4.6 via GoCode proxy · Read-only GitHub access · Results published to Confluence
             </p>
           )}
@@ -131,14 +132,14 @@ export default function App() {
 
         {/* Analysis progress */}
         {isAnalyzing && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 mb-8">
+          <div className="bg-white border border-[#D4DBE0] rounded-2xl p-8 mb-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" />
+              <div className="w-8 h-8 rounded-full bg-[#111] flex items-center justify-center">
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin block" />
               </div>
               <div>
-                <p className="text-white font-semibold">Analyzing {repoUrl.split('/').slice(-1)[0]}</p>
-                <p className="text-gray-500 text-sm">Claude is reading your codebase...</p>
+                <p className="text-[#111] font-semibold text-[15px]">Analyzing {repoUrl.split('/').slice(-1)[0]}</p>
+                <p className="text-[#666] text-[13px]">Claude is reading your codebase...</p>
               </div>
             </div>
             <AnalysisStream jobId={jobId} onResult={handleResult} />
@@ -147,21 +148,21 @@ export default function App() {
 
         {/* Published banner */}
         {publishedLinks && (
-          <div className="bg-green-950 border border-green-800 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-green-400 text-xl">✅</span>
+              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-sm">✓</div>
               <div>
-                <p className="text-green-300 font-semibold text-sm">Published successfully</p>
-                <p className="text-green-600 text-xs">Confluence page created · Jira ticket {publishedLinks.ticketKey}</p>
+                <p className="text-green-800 font-semibold text-[14px]">Published successfully</p>
+                <p className="text-green-600 text-[13px]">Confluence page created · Jira ticket {publishedLinks.ticketKey}</p>
               </div>
             </div>
             <div className="flex gap-2">
               <a href={publishedLinks.pageUrl} target="_blank" rel="noreferrer"
-                 className="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1.5 rounded-lg transition-colors">
+                 className="text-[13px] bg-white hover:bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-[6px] transition-colors">
                 View in Confluence →
               </a>
               <a href={publishedLinks.ticketUrl} target="_blank" rel="noreferrer"
-                 className="text-xs bg-green-900 hover:bg-green-800 text-green-300 px-3 py-1.5 rounded-lg transition-colors">
+                 className="text-[13px] bg-white hover:bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-[6px] transition-colors">
                 {publishedLinks.ticketKey} →
               </a>
             </div>
