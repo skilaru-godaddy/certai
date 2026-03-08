@@ -124,8 +124,11 @@ async function runAnalysis(jobId: string): Promise<void> {
       }
     }
 
+    // Strip markdown fences if Claude wrapped the response
+    const jsonText = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+
     // Parse result
-    const parsed = JSON.parse(rawJson) as AnalysisResult;
+    const parsed = JSON.parse(jsonText) as AnalysisResult;
     parsed.snapshot = snapshot;
     job.result = parsed;
     job.status = JobStatus.Done;
