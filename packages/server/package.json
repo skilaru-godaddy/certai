@@ -1,0 +1,24 @@
+{
+  "name": "@certai/server",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@octokit/rest": "^21.0.2",
+    "@slack/bolt": "^4.4.0",
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/static": "^8.0.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
+    "@types/node": "^22.10.7"
+  }
+}
