@@ -1,8 +1,10 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { analyzeRoutes } from './routes/analyze.js';
 
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: 'http://localhost:5173' });
+await app.register(cors, { origin: '*' });
+await app.register(analyzeRoutes);
 
 app.get('/health', async () => ({ status: 'ok' }));
 
