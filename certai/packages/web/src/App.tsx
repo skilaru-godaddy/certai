@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnalysisStream } from './components/AnalysisStream.js';
 import { ResultView } from './components/ResultView.js';
 import type { AnalysisResult } from './types.js';
@@ -9,6 +9,26 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [publishing, setPublishing] = useState(false);
+
+  // Deep link: ?jobId= in URL (from Slack DM)
+  const [autoJobId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('jobId');
+  });
+
+  useEffect(() => {
+    if (!autoJobId) return;
+    setJobId(autoJobId);
+    fetch(`/job/${autoJobId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.repoUrl) setRepoUrl(data.repoUrl);
+        if (data.status === 'done' && data.result) {
+          setResult(data.result);
+        }
+        // if still running, AnalysisStream will pick it up via jobId
+      });
+  }, [autoJobId]);
 
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
@@ -73,7 +93,13 @@ export default function App() {
       </form>
 
       {jobId && !result && (
-        <AnalysisStream jobId={jobId} onResult={handleResult} />
+        <div className="space-y-8">
+          <AnalysisStream jobId={jobId} onResult={handleResult} />
+          {/* Progress bar */}
+          <div className="bg-gray-900 rounded-full h-1 overflow-hidden">
+            <div className="bg-indigo-500 h-full animate-pulse w-1/2" />
+          </div>
+        </div>
       )}
 
       {result && (
