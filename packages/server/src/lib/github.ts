@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import type { RepoRef, RepoFile, RepoSnapshot } from '../types.js';
+import type { RepoRef, RepoFile, RepoSnapshot, CveFinding } from '../types.js';
 
 // ─── URL parsing ─────────────────────────────────────────────────────────────
 
@@ -110,6 +110,40 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
   const treeText = allPaths.slice(0, 500).join('\n');
 
   return { ref, allPaths, priorityFiles, treeText };
+}
+
+export async function fetchDependabotAlerts(ref: RepoRef): Promise<CveFinding[]> {
+  const pat = process.env.GITHUB_PAT!;
+  const baseUrl = process.env.GITHUB_API_URL!;
+  const octokit = createGitHubClient(pat, baseUrl);
+
+  try {
+    // Check if dependabot.yml exists as a proxy for Dependabot being active
+    await octokit.repos.getContent({
+      owner: ref.owner,
+      repo: ref.repo,
+      path: '.github/dependabot.yml',
+    });
+
+    const { data: alerts } = await octokit.rest.dependabot.listAlertsForRepo({
+      owner: ref.owner,
+      repo: ref.repo,
+      state: 'open',
+      per_page: 50,
+    });
+
+    return alerts.map((alert): CveFinding => ({
+      packageName: alert.dependency.package?.name ?? 'unknown',
+      version: alert.dependency.manifest_path ?? 'unknown',
+      ecosystem: alert.dependency.package?.ecosystem ?? 'unknown',
+      vulnId: alert.security_advisory.cve_id ?? alert.security_advisory.ghsa_id,
+      summary: alert.security_advisory.summary,
+      severity: alert.security_advisory.severity,
+      fixedVersion: alert.security_advisory.vulnerabilities?.[0]?.first_patched_version?.identifier ?? null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchSpecificFiles(ref: RepoRef, paths: string[]): Promise<RepoFile[]> {

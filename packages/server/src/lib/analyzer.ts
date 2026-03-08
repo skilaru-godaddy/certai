@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { fetchRepoSnapshot, fetchSpecificFiles } from './github.js';
+import { fetchRepoSnapshot, fetchSpecificFiles, fetchDependabotAlerts } from './github.js';
 import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
 import { parseDependencies, scanWithOsv } from './osv.js';
@@ -140,13 +140,26 @@ async function runAnalysis(jobId: string): Promise<void> {
       });
     }
 
-    // Phase 2b: Parallel CVE + secret scans
+    // Phase 2b: Parallel CVE + secret scans (OSV + Dependabot + secrets)
     notify(job, { phase: 'fetching', message: 'Running CVE scan and secret detection...' });
     const sbom = parseDependencies(snapshot.priorityFiles);
-    const [cveScanResults, secretScanFindings] = await Promise.all([
+    const [osvResults, dependabotResults, secretScanFindings] = await Promise.all([
       scanWithOsv(sbom),
+      fetchDependabotAlerts(ref),
       Promise.resolve(scanForSecrets(snapshot.priorityFiles)),
     ]);
+
+    // Merge and deduplicate CVE findings by vulnId+package
+    const seen = new Set<string>();
+    const cveScanResults: CveFinding[] = [];
+    for (const finding of [...osvResults, ...dependabotResults]) {
+      const key = `${finding.vulnId}:${finding.packageName}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        cveScanResults.push(finding);
+      }
+    }
+
     notify(job, {
       phase: 'fetching',
       message: `CVE scan: ${cveScanResults.length} findings | Secrets: ${secretScanFindings.length} findings`,
