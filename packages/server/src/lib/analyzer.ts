@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { fetchRepoSnapshot } from './github.js';
 import { streamAnalysis } from './claude.js';
 import { parseRepoUrl } from './github.js';
-import type { RepoSnapshot } from '../types.js';
+import type { RepoSnapshot, CveFinding, SecretFinding, SbomComponent } from '../types.js';
 
 // ─── Job store (in-memory for prototype) ────────────────────────────────────
 
@@ -39,6 +39,11 @@ export interface AnalysisResult {
   questionnaire: QuestionnaireItem[];
   irpDraft: string;
   snapshot: RepoSnapshot;
+  thinkingText: string;
+  securityScore: number;
+  cveScanResults: CveFinding[];
+  secretScanFindings: SecretFinding[];
+  sbom: SbomComponent[];
 }
 
 export interface ThreatItem {
@@ -48,6 +53,9 @@ export interface ThreatItem {
   impact: string;
   mitigation: string;
   codeEvidence: string;
+  strideCategory: 'Spoofing' | 'Tampering' | 'Repudiation' | 'Information Disclosure' | 'Denial of Service' | 'Elevation of Privilege';
+  dreadScore: number;
+  owaspCategory: string;
 }
 
 export interface QuestionnaireItem {
@@ -55,7 +63,11 @@ export interface QuestionnaireItem {
   question: string;
   answer: string;
   evidence: string;
+  confidence: 'Confirmed' | 'Inferred' | 'Needs Manual Verification';
 }
+
+// Re-export shared types for convenience
+export type { CveFinding, SecretFinding, SbomComponent };
 
 const jobs = new Map<string, Job>();
 
