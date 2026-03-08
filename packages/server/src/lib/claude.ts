@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { RepoSnapshot } from '../types.js';
+import type { RepoSnapshot, CveFinding, SecretFinding } from '../types.js';
 
 // ─── Client (GoCode proxy drop-in) ───────────────────────────────────────────
 
@@ -12,10 +12,31 @@ export function createClaudeClient() {
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
-export function buildAnalysisPrompt(snapshot: RepoSnapshot): string {
+export function buildAnalysisPrompt(
+  snapshot: RepoSnapshot,
+  cveScanResults?: CveFinding[],
+  secretScanFindings?: SecretFinding[]
+): string {
   const fileBlocks = snapshot.priorityFiles
     .map((f) => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``)
     .join('\n\n');
+
+  let prebuiltContext = '';
+
+  if (cveScanResults && cveScanResults.length > 0) {
+    const cveLines = cveScanResults
+      .slice(0, 20)
+      .map((c) => `- ${c.packageName}@${c.version} → ${c.vulnId} (${c.severity}): ${c.summary}${c.fixedVersion ? ` | Fix: upgrade to ${c.fixedVersion}` : ''}`)
+      .join('\n');
+    prebuiltContext += `\n\n## REAL CVE DATA (from OSV API — use this for Q28 answer):\n${cveLines}`;
+  }
+
+  if (secretScanFindings && secretScanFindings.length > 0) {
+    const secretLines = secretScanFindings
+      .map((s) => `- ${s.path}:${s.line} → ${s.type} (${s.preview})`)
+      .join('\n');
+    prebuiltContext += `\n\n## DETECTED SECRETS IN CODE (use this for Q10 answer):\n${secretLines}`;
+  }
 
   return `You are a GoDaddy security engineer performing a security certification analysis.
 
@@ -26,7 +47,7 @@ Host: ${snapshot.ref.host}
 ${snapshot.treeText}
 
 ## Security-relevant files (${snapshot.priorityFiles.length} files):
-${fileBlocks}
+${fileBlocks}${prebuiltContext}
 
 ---
 
@@ -199,10 +220,12 @@ export interface AnalysisChunk {
 }
 
 export async function* streamAnalysis(
-  snapshot: RepoSnapshot
+  snapshot: RepoSnapshot,
+  cveScanResults?: CveFinding[],
+  secretScanFindings?: SecretFinding[]
 ): AsyncGenerator<AnalysisChunk> {
   const client = createClaudeClient();
-  const prompt = buildAnalysisPrompt(snapshot);
+  const prompt = buildAnalysisPrompt(snapshot, cveScanResults, secretScanFindings);
 
   try {
     const stream = await client.messages.stream({

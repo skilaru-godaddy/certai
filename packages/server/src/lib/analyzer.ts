@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import { fetchRepoSnapshot, fetchSpecificFiles } from './github.js';
 import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
+import { parseDependencies, scanWithOsv } from './osv.js';
+import { scanForSecrets } from './secrets.js';
 import type { RepoSnapshot, CveFinding, SecretFinding, SbomComponent } from '../types.js';
 
 // ─── Job store (in-memory for prototype) ────────────────────────────────────
@@ -138,10 +140,24 @@ async function runAnalysis(jobId: string): Promise<void> {
       });
     }
 
+    // Phase 2b: Parallel CVE + secret scans
+    notify(job, { phase: 'fetching', message: 'Running CVE scan and secret detection...' });
+    const sbom = parseDependencies(snapshot.priorityFiles);
+    const [cveScanResults, secretScanFindings] = await Promise.all([
+      scanWithOsv(sbom),
+      Promise.resolve(scanForSecrets(snapshot.priorityFiles)),
+    ]);
+    notify(job, {
+      phase: 'fetching',
+      message: `CVE scan: ${cveScanResults.length} findings | Secrets: ${secretScanFindings.length} findings`,
+    });
+
     // Phase 3+4: Claude streaming analysis
     let rawJson = '';
-    for await (const chunk of streamAnalysis(snapshot)) {
+    let thinkingText = '';
+    for await (const chunk of streamAnalysis(snapshot, cveScanResults, secretScanFindings)) {
       if (chunk.type === 'thinking') {
+        thinkingText += chunk.content;
         notify(job, { phase: 'thinking', message: chunk.content });
       } else if (chunk.type === 'text') {
         rawJson += chunk.content;
@@ -157,6 +173,10 @@ async function runAnalysis(jobId: string): Promise<void> {
     // Parse result
     const parsed = JSON.parse(jsonText) as AnalysisResult;
     parsed.snapshot = snapshot;
+    parsed.thinkingText = thinkingText;
+    parsed.cveScanResults = cveScanResults;
+    parsed.secretScanFindings = secretScanFindings;
+    parsed.sbom = sbom;
     job.result = parsed;
     job.status = JobStatus.Done;
     notify(job, { phase: 'done', message: 'Analysis complete', data: parsed });
