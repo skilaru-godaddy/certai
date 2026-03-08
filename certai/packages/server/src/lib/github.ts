@@ -93,8 +93,15 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
         }
         const content = Buffer.from(data.content, 'base64').toString('utf-8');
         return { path, content: content.slice(0, 8000), sizeBytes: data.size };
-      } catch {
-        return { path, content: '[could not fetch]', sizeBytes: 0 };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('404')) {
+          return { path, content: '[file not found — may have been deleted]', sizeBytes: 0 };
+        }
+        if (msg.includes('403')) {
+          return { path, content: '[access denied — check PAT scopes]', sizeBytes: 0 };
+        }
+        return { path, content: `[fetch error: ${msg}]`, sizeBytes: 0 };
       }
     })
   );
