@@ -61,6 +61,12 @@ export function ThreatTable({ threats }: Props) {
                 {t.owaspCategory && (
                   <span className="text-[12px] text-[#444] font-mono">{t.owaspCategory.split('–')[0].trim()}</span>
                 )}
+                {t.mitreAttackTechniqueId && (
+                  <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-[6px]"
+                        title={`${t.mitreAttackTactic} → ${t.mitreAttackTechnique}`}>
+                    MITRE {t.mitreAttackTechniqueId}
+                  </span>
+                )}
                 <code className="text-[12px] text-[#444] font-mono">{t.codeEvidence}</code>
               </div>
             </div>

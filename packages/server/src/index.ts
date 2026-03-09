@@ -2,12 +2,18 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { analyzeRoutes } from './routes/analyze.js';
 import { publishRoutes } from './routes/publish.js';
+import { historyRoutes } from './routes/history.js';
+import { compareRoutes } from './routes/compare.js';
+import { exportRoutes } from './routes/export.js';
 import { registerSlack } from './routes/slack.js';
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: '*' });
 await app.register(analyzeRoutes);
 await app.register(publishRoutes);
+await app.register(historyRoutes);
+await app.register(compareRoutes);
+await app.register(exportRoutes);
 
 app.get('/health', async () => ({ status: 'ok' }));
 

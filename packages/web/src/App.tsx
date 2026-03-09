@@ -6,6 +6,7 @@ import type { AnalysisResult } from './types.js';
 export default function App() {
   const [repoUrl, setRepoUrl] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
+  const [jobCreatedAt, setJobCreatedAt] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -20,6 +21,7 @@ export default function App() {
       .then((r) => r.json())
       .then((data) => {
         if (data.repoUrl) setRepoUrl(data.repoUrl);
+        if (data.createdAt) setJobCreatedAt(new Date(data.createdAt));
         if (data.status === 'done' && data.result) setResult(data.result);
       });
   }, [autoJobId]);
@@ -38,6 +40,7 @@ export default function App() {
     });
     const data = await res.json();
     setJobId(data.jobId);
+    setJobCreatedAt(new Date());
     setLoading(false);
   }
 
@@ -176,6 +179,8 @@ export default function App() {
             repoUrl={repoUrl}
             onPublish={handlePublish}
             publishing={publishing}
+            jobId={jobId ?? undefined}
+            createdAt={jobCreatedAt}
           />
         )}
       </div>

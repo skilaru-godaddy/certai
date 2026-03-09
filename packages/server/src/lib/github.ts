@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import type { RepoRef, RepoFile, RepoSnapshot, CveFinding } from '../types.js';
+import type { RepoRef, RepoFile, RepoSnapshot, CveFinding, SemgrepFinding } from '../types.js';
 
 // ─── URL parsing ─────────────────────────────────────────────────────────────
 
@@ -141,6 +141,45 @@ export async function fetchDependabotAlerts(ref: RepoRef): Promise<CveFinding[]>
       severity: alert.security_advisory.severity,
       fixedVersion: alert.security_advisory.vulnerabilities?.[0]?.first_patched_version?.identifier ?? null,
     }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCodeScanningAlerts(ref: RepoRef): Promise<SemgrepFinding[]> {
+  const pat = process.env.GITHUB_PAT!;
+  const baseUrl = process.env.GITHUB_API_URL!;
+  const octokit = createGitHubClient(pat, baseUrl);
+
+  try {
+    const { data: alerts } = await octokit.request(
+      'GET /repos/{owner}/{repo}/code-scanning/alerts',
+      {
+        owner: ref.owner,
+        repo: ref.repo,
+        state: 'open',
+        per_page: 100,
+      }
+    );
+
+    return (alerts as Array<{
+      rule: { id: string; description: string; tags?: string[] };
+      most_recent_instance: {
+        location?: { path?: string; start_line?: number };
+      };
+      tool: { name: string };
+      state: string;
+    }>).map((alert): SemgrepFinding => {
+      const cweTag = alert.rule.tags?.find((t) => t.startsWith('cwe/'));
+      return {
+        rule: alert.rule.id ?? 'unknown',
+        severity: 'Medium', // Code scanning API doesn't expose severity directly in older endpoints
+        description: alert.rule.description ?? '',
+        file: alert.most_recent_instance?.location?.path ?? '',
+        line: alert.most_recent_instance?.location?.start_line ?? 0,
+        cweId: cweTag?.replace('cwe/', 'CWE-'),
+      };
+    });
   } catch {
     return [];
   }

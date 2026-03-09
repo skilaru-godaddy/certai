@@ -62,6 +62,36 @@ Return a valid JSON object with exactly these fields:
   "riskCategory": "CAT 0" | "CAT 1" | "CAT 2" | "CAT 3",
   "riskReasoning": "string — 2-3 sentence explanation using evidence from the code",
   "mermaidDiagram": "string — valid Mermaid graph TD diagram showing architecture",
+  "dataFlowDiagram": "string — valid Mermaid flowchart showing data flows, trust boundaries, PII callouts (SEPARATE from mermaidDiagram above, use flowchart LR format)",
+
+  "inScope": ["string — list of services, APIs, data stores being certified"],
+  "outOfScope": ["string — list of what is explicitly excluded from this certification"],
+  "architecturalAssumptions": ["string — security assumptions that must hold (e.g. 'TLS enforced at load balancer', 'MFA required for all admin access')"],
+
+  "apiInventory": [
+    {
+      "endpoint": "POST /api/users",
+      "mutating": true,
+      "authn": "JWT Bearer",
+      "authz": "RBAC",
+      "externalFacing": true
+    }
+  ],
+  "apiGatewayChecklist": {
+    "https": true,
+    "approvedAuth": true,
+    "rateLimiting": false,
+    "anomalyMonitoring": false,
+    "notes": "string"
+  },
+  "secretsAndCredentials": "string — where keys/tokens/certs are stored and how protected",
+  "monitoringAndLogging": {
+    "loggingFramework": "string",
+    "logDestination": "string",
+    "retentionPolicy": "string",
+    "alertingSetup": "string"
+  },
+
   "threats": [
     {
       "component": "string",
@@ -72,9 +102,61 @@ Return a valid JSON object with exactly these fields:
       "codeEvidence": "path/to/file.ts:lineHint",
       "strideCategory": "Spoofing" | "Tampering" | "Repudiation" | "Information Disclosure" | "Denial of Service" | "Elevation of Privilege",
       "dreadScore": <number 1-10, composite average of Damage+Reproducibility+Exploitability+AffectedUsers+Discoverability>,
-      "owaspCategory": "<OWASP Top 10 2021 category, e.g. 'A01:2021 – Broken Access Control'>"
+      "owaspCategory": "<OWASP Top 10 2021 category, e.g. 'A01:2021 – Broken Access Control'>",
+      "mitreAttackTactic": "string — e.g. 'Initial Access'",
+      "mitreAttackTechnique": "string — e.g. 'Exploit Public-Facing Application'",
+      "mitreAttackTechniqueId": "string — e.g. 'T1190'"
     }
   ],
+
+  "iacFindings": [
+    {
+      "resource": "string — e.g. 'aws_s3_bucket.data'",
+      "check": "string — e.g. 'S3 bucket has public access enabled'",
+      "severity": "Critical" | "High" | "Medium" | "Low",
+      "file": "string — path to IaC file",
+      "line": <optional number>,
+      "framework": "Terraform" | "CloudFormation" | "Kubernetes" | "Dockerfile"
+    }
+  ],
+  "slsaLevel": <0 | 1 | 2 | 3>,
+  "slsaReasoning": "string — explain what SLSA level was determined and why",
+
+  "owaspAsvs": [
+    {
+      "chapter": "string — e.g. 'V2 Authentication'",
+      "requirement": "string — specific ASVS requirement text",
+      "level": <1 | 2 | 3>,
+      "status": "pass" | "fail" | "not-applicable",
+      "evidence": "string — file:line or explanation"
+    }
+  ],
+
+  "complianceGaps": [
+    {
+      "framework": "PCI DSS" | "SOC 2" | "ISO 27001" | "GoDaddy CAT",
+      "control": "string — control name/ID",
+      "status": "pass" | "fail" | "partial",
+      "notes": "string"
+    }
+  ],
+
+  "pentestScope": {
+    "highRiskAreas": ["string — specific areas requiring pentest focus"],
+    "attackSurface": ["string — external-facing endpoints, APIs, auth flows"],
+    "testingRecommendations": ["string — specific test types to perform"],
+    "estimatedEffort": "string — e.g. '3-5 days for targeted assessment'"
+  },
+
+  "fairRiskEstimates": [
+    {
+      "threat": "string — name of the threat (match top-3 highest severity threats)",
+      "annualLossExpectancy": "string — e.g. '$10K–$100K'",
+      "riskBand": "low" | "medium" | "high" | "critical",
+      "assumptions": "string — key assumptions behind this estimate"
+    }
+  ],
+
   "questionnaire": [
     {
       "id": 1,
@@ -129,11 +211,16 @@ Return a valid JSON object with exactly these fields:
 For each question, provide a specific answer with code evidence (file path and line hint).
 If you cannot determine from the code, state what would need to be manually verified.
 
-## Mermaid diagram requirements:
+## Mermaid diagram requirements (mermaidDiagram):
 - Use "graph TD" format
 - Show all major components (services, databases, external dependencies)
 - Label connections with protocols (HTTPS, OAuth2, SQL, etc.)
 - Keep it to 10-15 nodes max for readability
+
+## Data Flow Diagram requirements (dataFlowDiagram):
+- Use "flowchart LR" format
+- Show data flows between systems, trust boundaries (subgraph), PII callouts
+- Annotate PII data flows with [PII] label
 
 ## STRIDE Categories:
 Map each threat to exactly one STRIDE category based on the primary attack vector.
@@ -144,6 +231,10 @@ Map each threat to exactly one STRIDE category based on the primary attack vecto
 - Exploitability: How much skill does an attacker need?
 - Affected users: What percentage of users would be impacted?
 - Discoverability: How easy to find the vulnerability?
+
+## MITRE ATT&CK Mapping:
+For each threat, map to the most relevant MITRE ATT&CK Enterprise tactic and technique.
+Use the official technique IDs (e.g. T1190, T1078, T1059).
 
 ## OWASP Top 10 2021 Categories:
 A01:2021 – Broken Access Control
@@ -156,6 +247,26 @@ A07:2021 – Identification and Authentication Failures
 A08:2021 – Software and Data Integrity Failures
 A09:2021 – Security Logging and Monitoring Failures
 A10:2021 – Server-Side Request Forgery (SSRF)
+
+## OWASP ASVS:
+Select the 20 most relevant ASVS requirements for this codebase (mix of V1-V14 chapters).
+Assess at Level 1 (baseline), 2 (standard), or 3 (advanced) based on system criticality.
+
+## IaC Scanning:
+Examine any Terraform, CloudFormation, Kubernetes, or Dockerfile content and flag misconfigurations.
+
+## SLSA Level Assessment (0-3):
+- Level 0: No provenance
+- Level 1: Build provenance available
+- Level 2: Hosted build platform, signed provenance
+- Level 3: Hardened build platform, non-falsifiable provenance
+
+## FAIR Risk Model:
+Estimate for the top 3 highest-severity threats. Be conservative with ALE ranges.
+
+## Compliance Gap Assessment:
+Check against PCI DSS v4, SOC 2 Type II, ISO 27001:2022, and GoDaddy CAT criteria.
+Focus on controls that are clearly pass/fail from the code.
 
 ## Questionnaire confidence rules:
 - "Confirmed": you can point to a specific line of code
@@ -230,10 +341,10 @@ export async function* streamAnalysis(
   try {
     const stream = await client.messages.stream({
       model: 'claude-sonnet-4-6',
-      max_tokens: 16000,
+      max_tokens: 32000,
       thinking: {
         type: 'enabled',
-        budget_tokens: 10000,
+        budget_tokens: 4000,
       },
       messages: [{ role: 'user', content: prompt }],
     });

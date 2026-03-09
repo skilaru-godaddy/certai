@@ -1,0 +1,18 @@
+[
+  {
+    "jobId": "49390eff-3a3a-42ae-9adf-423e6a6ca94e",
+    "date": "2026-03-09T08:28:01.439Z",
+    "securityScore": 32,
+    "riskCategory": "CAT 1",
+    "threatCount": 10,
+    "cveCount": 0
+  },
+  {
+    "jobId": "0ac01de8-917a-42eb-b3ce-56b51cae0ffd",
+    "date": "2026-03-09T08:43:05.079Z",
+    "securityScore": 32,
+    "riskCategory": "CAT 1",
+    "threatCount": 10,
+    "cveCount": 0
+  }
+]

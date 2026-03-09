@@ -1,12 +1,21 @@
 import { randomUUID } from 'crypto';
 import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { fetchRepoSnapshot, fetchSpecificFiles, fetchDependabotAlerts } from './github.js';
+import { fetchRepoSnapshot, fetchSpecificFiles, fetchDependabotAlerts, fetchCodeScanningAlerts } from './github.js';
 import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
 import { parseDependencies, scanWithOsv } from './osv.js';
+import { fetchEpssScores } from './epss.js';
+import { fetchLicenseFindings } from './licenses.js';
+import { analyzeSupplyChainRisks } from './supplychain.js';
 import { scanForSecrets } from './secrets.js';
-import type { RepoSnapshot, CveFinding, SecretFinding, SbomComponent } from '../types.js';
+import type {
+  RepoSnapshot, CveFinding, SecretFinding, SbomComponent,
+  ApiEndpoint, ApiGatewayChecklist, MonitoringInfo,
+  IacFinding, OwaspAsvs, ComplianceGap, PentestScope, FairRiskEstimate,
+  LicenseFinding, SupplyChainRisk, SemgrepFinding,
+} from '../types.js';
+import { appendHistoryEntry, repoKeyFromUrl } from './history.js';
 
 // ─── Job persistence ──────────────────────────────────────────────────────────
 
@@ -85,6 +94,32 @@ export interface AnalysisResult {
   cveScanResults: CveFinding[];
   secretScanFindings: SecretFinding[];
   sbom: SbomComponent[];
+
+  // GoDaddy template fields
+  inScope: string[];
+  outOfScope: string[];
+  architecturalAssumptions: string[];
+  dataFlowDiagram: string;
+  apiInventory: ApiEndpoint[];
+  apiGatewayChecklist: ApiGatewayChecklist;
+  secretsAndCredentials: string;
+  monitoringAndLogging: MonitoringInfo;
+  gitSha: string;
+
+  // Industry-standard enrichment (from Claude)
+  iacFindings: IacFinding[];
+  slsaLevel: 0 | 1 | 2 | 3;
+  slsaReasoning: string;
+  owaspAsvs: OwaspAsvs[];
+  complianceGaps: ComplianceGap[];
+  pentestScope: PentestScope;
+  fairRiskEstimates: FairRiskEstimate[];
+
+  // Enriched by external APIs (not from Claude)
+  epssScores: Record<string, number>;
+  licenseFindings: LicenseFinding[];
+  supplyChainRisks: SupplyChainRisk[];
+  semgrepFindings: SemgrepFinding[];
 }
 
 export interface ThreatItem {
@@ -97,6 +132,9 @@ export interface ThreatItem {
   strideCategory: 'Spoofing' | 'Tampering' | 'Repudiation' | 'Information Disclosure' | 'Denial of Service' | 'Elevation of Privilege';
   dreadScore: number;
   owaspCategory: string;
+  mitreAttackTactic?: string;        // e.g. "Initial Access"
+  mitreAttackTechnique?: string;     // e.g. "Exploit Public-Facing Application"
+  mitreAttackTechniqueId?: string;   // e.g. "T1190"
 }
 
 export interface QuestionnaireItem {
@@ -108,7 +146,12 @@ export interface QuestionnaireItem {
 }
 
 // Re-export shared types for convenience
-export type { CveFinding, SecretFinding, SbomComponent };
+export type {
+  CveFinding, SecretFinding, SbomComponent,
+  ApiEndpoint, ApiGatewayChecklist, MonitoringInfo,
+  IacFinding, OwaspAsvs, ComplianceGap, PentestScope, FairRiskEstimate,
+  LicenseFinding, SupplyChainRisk, SemgrepFinding,
+};
 
 const jobs = new Map<string, Job>();
 loadPersistedJobs();
@@ -157,37 +200,40 @@ async function runAnalysis(jobId: string): Promise<void> {
     notify(job, { phase: 'discovery', message: 'Discovering repo structure...' });
     const ref = parseRepoUrl(job.repoUrl);
 
-    // Phase 2: File fetching — two-pass triage
+    // Phase 2: Fetch file tree, then fan out everything in parallel
     notify(job, { phase: 'fetching', message: 'Fetching file tree...' });
     const snapshot = await fetchRepoSnapshot(ref);
     notify(job, {
       phase: 'fetching',
-      message: `Found ${snapshot.allPaths.length} files. Running security triage...`,
+      message: `Found ${snapshot.allPaths.length} files. Running triage, CVE scan, and secret detection in parallel...`,
     });
 
-    const triagedPaths = await triageFiles(snapshot.allPaths, snapshot.treeText);
+    // Parse SBOM from the initial priority files so CVE scan can start immediately
+    const sbomInitial = parseDependencies(snapshot.priorityFiles);
+
+    // Fan out: triage + CVE scan + secrets + code scanning all in parallel
+    const [
+      triagedPaths,
+      osvResults,
+      dependabotResults,
+      secretScanFindings,
+      semgrepFindings,
+    ] = await Promise.all([
+      triageFiles(snapshot.allPaths, snapshot.treeText),
+      scanWithOsv(sbomInitial),
+      fetchDependabotAlerts(ref),
+      Promise.resolve(scanForSecrets(snapshot.priorityFiles)),
+      fetchCodeScanningAlerts(ref),
+    ]);
+
+    // Fetch the triaged files and update snapshot
     if (triagedPaths.length > 0) {
       const triagedFiles = await fetchSpecificFiles(ref, triagedPaths);
       snapshot.priorityFiles = triagedFiles;
-      notify(job, {
-        phase: 'fetching',
-        message: `Loaded ${triagedFiles.length} files selected by Claude security triage`,
-      });
-    } else {
-      notify(job, {
-        phase: 'fetching',
-        message: `Loaded ${snapshot.priorityFiles.length} files (triage fallback)`,
-      });
     }
 
-    // Phase 2b: Parallel CVE + secret scans (OSV + Dependabot + secrets)
-    notify(job, { phase: 'fetching', message: 'Running CVE scan and secret detection...' });
+    // Re-parse SBOM from final file set (may include more files post-triage)
     const sbom = parseDependencies(snapshot.priorityFiles);
-    const [osvResults, dependabotResults, secretScanFindings] = await Promise.all([
-      scanWithOsv(sbom),
-      fetchDependabotAlerts(ref),
-      Promise.resolve(scanForSecrets(snapshot.priorityFiles)),
-    ]);
 
     // Merge and deduplicate CVE findings by vulnId+package
     const seen = new Set<string>();
@@ -202,10 +248,18 @@ async function runAnalysis(jobId: string): Promise<void> {
 
     notify(job, {
       phase: 'fetching',
-      message: `CVE scan: ${cveScanResults.length} findings | Secrets: ${secretScanFindings.length} findings`,
+      message: `Loaded ${snapshot.priorityFiles.length} files | CVEs: ${cveScanResults.length} | Secrets: ${secretScanFindings.length} | Code scan: ${semgrepFindings.length}`,
     });
 
-    // Phase 3+4: Claude streaming analysis
+    // Phase 3+4: Start Claude AND external enrichment in parallel.
+    // EPSS/licenses/supply chain only need sbom + cveIds — no need to wait for Claude.
+    const cveIds = cveScanResults.map((c) => c.vulnId);
+    const enrichmentPromise = Promise.all([
+      fetchEpssScores(cveIds),
+      fetchLicenseFindings(sbom),
+      analyzeSupplyChainRisks(sbom),
+    ]);
+
     let rawJson = '';
     let thinkingText = '';
     for await (const chunk of streamAnalysis(snapshot, cveScanResults, secretScanFindings)) {
@@ -223,17 +277,64 @@ async function runAnalysis(jobId: string): Promise<void> {
     // Strip markdown fences if Claude wrapped the response
     const jsonText = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 
-    // Parse result
-    const parsed = JSON.parse(jsonText) as AnalysisResult;
+    // Parse result and wait for enrichment (likely already done by now)
+    const [parsed, [epssScores, licenseFindings, supplyChainRisks]] = await Promise.all([
+      Promise.resolve(JSON.parse(jsonText) as AnalysisResult),
+      enrichmentPromise,
+    ]);
+
     parsed.snapshot = snapshot;
     parsed.thinkingText = thinkingText;
     parsed.cveScanResults = cveScanResults;
     parsed.secretScanFindings = secretScanFindings;
     parsed.sbom = sbom;
+
+    // Populate gitSha from snapshot ref (best effort)
+    parsed.gitSha = `${snapshot.ref.owner}/${snapshot.ref.repo}@HEAD`;
+
+    parsed.epssScores = epssScores;
+    parsed.licenseFindings = licenseFindings;
+    parsed.supplyChainRisks = supplyChainRisks;
+    parsed.semgrepFindings = semgrepFindings;
+
+    // Ensure new GD template fields have safe defaults if Claude omitted them
+    parsed.inScope = parsed.inScope ?? [];
+    parsed.outOfScope = parsed.outOfScope ?? [];
+    parsed.architecturalAssumptions = parsed.architecturalAssumptions ?? [];
+    parsed.dataFlowDiagram = parsed.dataFlowDiagram ?? '';
+    parsed.apiInventory = parsed.apiInventory ?? [];
+    parsed.apiGatewayChecklist = parsed.apiGatewayChecklist ?? {
+      https: false, approvedAuth: false, rateLimiting: false, anomalyMonitoring: false, notes: '',
+    };
+    parsed.secretsAndCredentials = parsed.secretsAndCredentials ?? '';
+    parsed.monitoringAndLogging = parsed.monitoringAndLogging ?? {
+      loggingFramework: '', logDestination: '', retentionPolicy: '', alertingSetup: '',
+    };
+    parsed.iacFindings = parsed.iacFindings ?? [];
+    parsed.slsaLevel = parsed.slsaLevel ?? 0;
+    parsed.slsaReasoning = parsed.slsaReasoning ?? '';
+    parsed.owaspAsvs = parsed.owaspAsvs ?? [];
+    parsed.complianceGaps = parsed.complianceGaps ?? [];
+    parsed.pentestScope = parsed.pentestScope ?? {
+      highRiskAreas: [], attackSurface: [], testingRecommendations: [], estimatedEffort: '',
+    };
+    parsed.fairRiskEstimates = parsed.fairRiskEstimates ?? [];
+
     job.result = parsed;
     job.status = JobStatus.Done;
     notify(job, { phase: 'done', message: 'Analysis complete', data: parsed });
     persistJob(job);
+
+    // Append to per-repo history
+    const repoKey = repoKeyFromUrl(job.repoUrl);
+    appendHistoryEntry(repoKey, {
+      jobId: job.id,
+      date: job.createdAt.toISOString(),
+      securityScore: parsed.securityScore,
+      riskCategory: parsed.riskCategory,
+      threatCount: parsed.threats.length,
+      cveCount: (parsed.cveScanResults ?? []).length,
+    });
   } catch (err) {
     job.status = JobStatus.Error;
     job.error = String(err);
