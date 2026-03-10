@@ -28,6 +28,9 @@ function persistJob(job: Job): void {
     const data = {
       id: job.id,
       repoUrl: job.repoUrl,
+      branch: job.branch,
+      commitId: job.commitId,
+      userInput: job.userInput,
       status: job.status,
       createdAt: job.createdAt,
       result: job.result,
@@ -44,6 +47,9 @@ function loadPersistedJobs(): void {
       const data = JSON.parse(readFileSync(join(JOBS_DIR, file), 'utf-8'));
       const job: Job = {
         ...data,
+        branch: typeof data.branch === 'string' && data.branch.trim() ? data.branch : 'main',
+        commitId: typeof data.commitId === 'string' && data.commitId.trim() ? data.commitId : null,
+        userInput: typeof data.userInput === 'string' ? data.userInput : '',
         createdAt: new Date(data.createdAt),
         phases: [],
         error: null,
@@ -66,6 +72,9 @@ export enum JobStatus {
 export interface Job {
   id: string;
   repoUrl: string;
+  branch: string;
+  commitId: string | null;
+  userInput: string;
   status: JobStatus;
   createdAt: Date;
   phases: PhaseUpdate[];
@@ -164,10 +173,23 @@ export type {
 const jobs = new Map<string, Job>();
 loadPersistedJobs();
 
-export function createJob(repoUrl: string): Job {
+export interface CreateJobInput {
+  repoUrl: string;
+  branch?: string;
+  userInput?: string;
+}
+
+export function createJob(input: string | CreateJobInput): Job {
+  const repoUrl = typeof input === 'string' ? input : input.repoUrl;
+  const branch = typeof input === 'string' ? 'main' : (input.branch?.trim() || 'main');
+  const userInput = typeof input === 'string' ? '' : (input.userInput?.trim() || '');
+
   const job: Job = {
     id: randomUUID(),
     repoUrl,
+    branch,
+    commitId: null,
+    userInput,
     status: JobStatus.Pending,
     createdAt: new Date(),
     phases: [],
@@ -210,7 +232,8 @@ async function runAnalysis(jobId: string): Promise<void> {
 
     // Phase 2: Fetch file tree, then fan out everything in parallel
     notify(job, { phase: 'fetching', message: 'Fetching file tree...' });
-    const snapshot = await fetchRepoSnapshot(ref);
+    const snapshot = await fetchRepoSnapshot(ref, job.branch);
+    job.commitId = snapshot.commitSha;
     notify(job, {
       phase: 'fetching',
       message: `Found ${snapshot.allPaths.length} files. Running triage, CVE scan, and secret detection in parallel...`,
@@ -236,7 +259,7 @@ async function runAnalysis(jobId: string): Promise<void> {
 
     // Fetch the triaged files and update snapshot
     if (triagedPaths.length > 0) {
-      const triagedFiles = await fetchSpecificFiles(ref, triagedPaths);
+      const triagedFiles = await fetchSpecificFiles(ref, triagedPaths, job.branch);
       snapshot.priorityFiles = triagedFiles;
     }
 
@@ -270,7 +293,7 @@ async function runAnalysis(jobId: string): Promise<void> {
 
     let rawJson = '';
     let thinkingText = '';
-    for await (const chunk of streamAnalysis(snapshot, cveScanResults, secretScanFindings)) {
+    for await (const chunk of streamAnalysis(snapshot, cveScanResults, secretScanFindings, job.userInput)) {
       if (chunk.type === 'thinking') {
         thinkingText += chunk.content;
         notify(job, { phase: 'thinking', message: chunk.content });
@@ -298,7 +321,7 @@ async function runAnalysis(jobId: string): Promise<void> {
     parsed.sbom = sbom;
 
     // Populate gitSha from snapshot ref (best effort)
-    parsed.gitSha = `${snapshot.ref.owner}/${snapshot.ref.repo}@HEAD`;
+    parsed.gitSha = `${snapshot.ref.owner}/${snapshot.ref.repo}@${snapshot.commitSha}`;
 
     parsed.epssScores = epssScores;
     parsed.licenseFindings = licenseFindings;
