@@ -214,6 +214,128 @@ function notify(job: Job, update: PhaseUpdate) {
   }
 }
 
+function stripMarkdownFences(text: string): string {
+  return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+}
+
+function extractBalancedObject(text: string, start: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escapeNext) {
+        escapeNext = false;
+      } else if (ch === '\\') {
+        escapeNext = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      depth += 1;
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
+function extractJsonCandidates(raw: string): string[] {
+  const candidates = new Set<string>();
+  const normalized = stripMarkdownFences(raw);
+
+  if (normalized) candidates.add(normalized);
+
+  // Prefer explicit ```json ... ``` blocks when present.
+  const blockRegex = /```json\s*([\s\S]*?)\s*```/gi;
+  let match: RegExpExecArray | null;
+  while ((match = blockRegex.exec(raw)) !== null) {
+    const block = match[1].trim();
+    if (block) candidates.add(block);
+  }
+
+  // Also try generic fenced code blocks in case the model omits "json" language tag.
+  const genericBlockRegex = /```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)\s*```/g;
+  while ((match = genericBlockRegex.exec(raw)) !== null) {
+    const block = match[1].trim();
+    if (block) candidates.add(block);
+  }
+
+  // Fallback: extract balanced JSON object(s) from free-form text.
+  const scanText = normalized || raw;
+  let start = scanText.indexOf('{');
+  let attempts = 0;
+  while (start !== -1 && attempts < 50) {
+    const obj = extractBalancedObject(scanText, start);
+    if (obj) candidates.add(obj.trim());
+    start = scanText.indexOf('{', start + 1);
+    attempts += 1;
+  }
+
+  return [...candidates];
+}
+
+function normalizeJsonLike(text: string): string {
+  let out = text.trim();
+  // Remove JS-style comments.
+  out = out.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '');
+  // Convert single-quoted strings to double-quoted strings.
+  out = out.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_m, inner: string) => {
+    const escaped = inner.replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  });
+  // Quote unquoted object keys: { key: ... } or , key: ...
+  out = out.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)(\s*:)/g, '$1"$2"$3');
+  // Remove trailing commas.
+  out = out.replace(/,\s*([}\]])/g, '$1');
+  return out;
+}
+
+function parseAnalysisResult(raw: string): AnalysisResult {
+  const candidates = extractJsonCandidates(raw);
+  let lastErr: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as AnalysisResult;
+      }
+      lastErr = new Error('Parsed JSON is not an object');
+    } catch (err) {
+      lastErr = err;
+      try {
+        const repaired = normalizeJsonLike(candidate);
+        const parsed = JSON.parse(repaired);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as AnalysisResult;
+        }
+        lastErr = new Error('Normalized JSON is not an object');
+      } catch (repairErr) {
+        lastErr = repairErr;
+      }
+    }
+  }
+
+  const preview = raw.slice(0, 200).replace(/\s+/g, ' ');
+  throw new Error(`Unable to parse model output as JSON. ${String(lastErr)}. Preview: ${preview}`);
+}
+
 export function startAnalysis(jobId: string): void {
   // Fire and forget — do NOT await this
   runAnalysis(jobId).catch(() => {}); // errors are stored on the job
@@ -305,12 +427,9 @@ async function runAnalysis(jobId: string): Promise<void> {
       }
     }
 
-    // Strip markdown fences if Claude wrapped the response
-    const jsonText = rawJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-
     // Parse result and wait for enrichment (likely already done by now)
     const [parsed, [epssScores, licenseFindings, supplyChainRisks]] = await Promise.all([
-      Promise.resolve(JSON.parse(jsonText) as AnalysisResult),
+      Promise.resolve(parseAnalysisResult(rawJson)),
       enrichmentPromise,
     ]);
 

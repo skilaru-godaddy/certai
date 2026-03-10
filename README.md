@@ -68,7 +68,7 @@ npm run dev
 
 Paste any `https://github.secureserver.net/org/repo` URL and click **Analyze**.
 
-Optional MVP inputs:
+Optional inputs:
 - **Branch** (defaults to `main` if blank)
 - **Feature/module context** (free text to focus the review, e.g. "recently added billing webhook module")
 
