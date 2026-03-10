@@ -13,7 +13,7 @@ import type {
   RepoSnapshot, CveFinding, SecretFinding, SbomComponent,
   ApiEndpoint, ApiGatewayChecklist, MonitoringInfo,
   IacFinding, OwaspAsvs, ComplianceGap, PentestScope, FairRiskEstimate,
-  LicenseFinding, SupplyChainRisk, SemgrepFinding,
+  LicenseFinding, SupplyChainRisk, SemgrepFinding, AttackScenario,
 } from '../types.js';
 import { appendHistoryEntry, repoKeyFromUrl } from './history.js';
 
@@ -114,6 +114,7 @@ export interface AnalysisResult {
   complianceGaps: ComplianceGap[];
   pentestScope: PentestScope;
   fairRiskEstimates: FairRiskEstimate[];
+  attackScenarios: AttackScenario[];
 
   // Enriched by external APIs (not from Claude)
   epssScores: Record<string, number>;
@@ -158,7 +159,7 @@ export type {
   CveFinding, SecretFinding, SbomComponent,
   ApiEndpoint, ApiGatewayChecklist, MonitoringInfo,
   IacFinding, OwaspAsvs, ComplianceGap, PentestScope, FairRiskEstimate,
-  LicenseFinding, SupplyChainRisk, SemgrepFinding,
+  LicenseFinding, SupplyChainRisk, SemgrepFinding, AttackScenario,
 };
 
 const jobs = new Map<string, Job>();
@@ -327,6 +328,7 @@ async function runAnalysis(jobId: string): Promise<void> {
       highRiskAreas: [], attackSurface: [], testingRecommendations: [], estimatedEffort: '',
     };
     parsed.fairRiskEstimates = parsed.fairRiskEstimates ?? [];
+    parsed.attackScenarios = parsed.attackScenarios ?? [];
 
     job.result = parsed;
     job.status = JobStatus.Done;

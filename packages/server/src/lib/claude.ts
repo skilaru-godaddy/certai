@@ -163,6 +163,28 @@ Return a valid JSON object with exactly these fields:
     }
   ],
 
+  "attackScenarios": [
+    {
+      "name": "string — short scenario name, e.g. 'API Key Theft to Data Exfiltration'",
+      "severity": "Critical" | "High" | "Medium",
+      "entryPoint": "string — where the attacker starts, e.g. 'Public /api/upload endpoint'",
+      "objective": "string — attacker's end goal, e.g. 'Exfiltrate customer PII from database'",
+      "chain": [
+        {
+          "step": 1,
+          "technique": "string — MITRE ATT&CK technique name",
+          "techniqueId": "string — e.g. 'T1190'",
+          "action": "string — what the attacker does at this step, referencing actual code/endpoints",
+          "preconditions": ["string — what must be true for this step to succeed"],
+          "targetComponent": "string — component or file being targeted",
+          "impact": "string — what the attacker gains at this step"
+        }
+      ],
+      "blastRadius": "string — scope of damage if scenario succeeds, e.g. 'All user records (~10K rows), API credentials'",
+      "linkedThreatIndices": [0, 2]
+    }
+  ],
+
   "questionnaire": [
     {
       "id": 1,
@@ -273,6 +295,15 @@ Estimate for the top 3 highest-severity threats. Be conservative with ALE ranges
 ## Compliance Gap Assessment:
 Check against PCI DSS v4, SOC 2 Type II, ISO 27001:2022, and GoDaddy CAT criteria.
 Focus on controls that are clearly pass/fail from the code.
+
+## Red Team Attack Scenarios:
+Generate 3-5 realistic multi-step attack scenarios that chain together identified threats:
+- Each scenario must reference REAL code/endpoints from the repo
+- Chain steps should follow MITRE ATT&CK kill chain (Reconnaissance -> Initial Access -> Execution -> Persistence -> Privilege Escalation -> Lateral Movement -> Exfiltration)
+- Not every scenario needs all steps — use only the relevant ones
+- "linkedThreatIndices" should be 0-based indices into the threats array connecting which threats enable this scenario
+- Focus on the most critical paths an attacker would actually pursue
+- At least one scenario should target the highest-severity threats
 
 ## Remediation rules:
 For each threat, provide a "remediation" object with a concrete fix:

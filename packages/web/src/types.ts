@@ -129,6 +129,26 @@ export interface SupplyChainRisk {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+export interface AttackChainStep {
+  step: number;
+  technique: string;
+  techniqueId: string;
+  action: string;
+  preconditions: string[];
+  targetComponent: string;
+  impact: string;
+}
+
+export interface AttackScenario {
+  name: string;
+  severity: 'Critical' | 'High' | 'Medium';
+  entryPoint: string;
+  objective: string;
+  chain: AttackChainStep[];
+  blastRadius: string;
+  linkedThreatIndices: number[];
+}
+
 export interface SemgrepFinding {
   rule: string;
   severity: string;
@@ -170,6 +190,7 @@ export interface AnalysisResult {
   complianceGaps: ComplianceGap[];
   pentestScope: PentestScope;
   fairRiskEstimates: FairRiskEstimate[];
+  attackScenarios: AttackScenario[];
 
   // Enriched later (not from Claude)
   epssScores: Record<string, number>;

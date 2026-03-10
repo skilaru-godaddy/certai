@@ -126,6 +126,26 @@ export interface Remediation {
   effort: 'Low' | 'Medium' | 'High';
 }
 
+export interface AttackChainStep {
+  step: number;
+  technique: string;
+  techniqueId: string;
+  action: string;
+  preconditions: string[];
+  targetComponent: string;
+  impact: string;
+}
+
+export interface AttackScenario {
+  name: string;
+  severity: 'Critical' | 'High' | 'Medium';
+  entryPoint: string;
+  objective: string;
+  chain: AttackChainStep[];
+  blastRadius: string;
+  linkedThreatIndices: number[];
+}
+
 export interface SemgrepFinding {
   rule: string;
   severity: string;

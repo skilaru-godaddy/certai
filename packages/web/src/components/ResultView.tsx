@@ -8,6 +8,7 @@ import { IacScanView } from './IacScanView.js';
 import { ComplianceView } from './ComplianceView.js';
 import { SupplyChainView } from './SupplyChainView.js';
 import { MissingItemsChecklist } from './MissingItemsChecklist.js';
+import { AttackScenarioView } from './AttackScenarioView.js';
 
 const CAT_STYLES: Record<string, { badge: string; dot: string; label: string }> = {
   'CAT 0': { badge: 'bg-red-50 text-red-700 border border-red-200',     dot: 'bg-red-500',    label: 'Critical' },
@@ -23,8 +24,8 @@ const SEVERITY_STYLES: Record<string, string> = {
   Low: 'bg-green-50 text-green-700 border-green-200',
 };
 
-const ALL_TABS = ['Overview', 'GD Template', 'Architecture', 'Threats', 'Questionnaire', 'IRP', 'Dependencies', 'IaC', 'Compliance', 'Supply Chain', 'AI Reasoning'] as const;
-const CERTIFIER_TABS = ['Overview', 'GD Template', 'Architecture', 'Threats', 'Questionnaire', 'IRP', 'Dependencies', 'IaC', 'Compliance', 'Supply Chain'] as const;
+const ALL_TABS = ['Overview', 'GD Template', 'Architecture', 'Threats', 'Red Team', 'Questionnaire', 'IRP', 'Dependencies', 'IaC', 'Compliance', 'Supply Chain', 'AI Reasoning'] as const;
+const CERTIFIER_TABS = ['Overview', 'GD Template', 'Architecture', 'Threats', 'Red Team', 'Questionnaire', 'IRP', 'Dependencies', 'IaC', 'Compliance', 'Supply Chain'] as const;
 type Tab = typeof ALL_TABS[number];
 
 interface Props {
@@ -143,6 +144,7 @@ export function ResultView({ result, repoUrl, onPublish, publishing, jobId, crea
   const score = result.securityScore ?? 0;
   const iacCount = (result.iacFindings ?? []).length;
   const supplyChainCount = (result.supplyChainRisks ?? []).length;
+  const scenarioCount = (result.attackScenarios ?? []).length;
 
   // Staleness check (> 90 days)
   const isStale = createdAt && (Date.now() - createdAt.getTime()) > 90 * 24 * 60 * 60 * 1000;
@@ -259,6 +261,9 @@ export function ResultView({ result, repoUrl, onPublish, publishing, jobId, crea
             )}
             {tab === 'Dependencies' && cveCount > 0 && (
               <span className="text-[11px] bg-orange-100 text-orange-700 rounded-[6px] px-1.5 py-0.5 font-semibold">{cveCount}</span>
+            )}
+            {tab === 'Red Team' && scenarioCount > 0 && (
+              <span className="text-[11px] bg-rose-100 text-rose-700 rounded-[6px] px-1.5 py-0.5 font-semibold">{scenarioCount}</span>
             )}
             {tab === 'IaC' && iacCount > 0 && (
               <span className="text-[11px] bg-amber-100 text-amber-700 rounded-[6px] px-1.5 py-0.5 font-semibold">{iacCount}</span>
@@ -392,6 +397,24 @@ export function ResultView({ result, repoUrl, onPublish, publishing, jobId, crea
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'Red Team' && (
+          <div>
+            <h3 className="text-[11px] font-semibold text-[#666] uppercase tracking-wider mb-4">
+              Red Team Attack Scenarios
+              <span className="ml-2 normal-case font-normal text-[#999]">
+                {scenarioCount > 0 ? `${scenarioCount} multi-step attack chains` : 'No scenarios generated'}
+              </span>
+            </h3>
+            <p className="text-[13px] text-[#666] mb-4 leading-relaxed">
+              Realistic attack chains that show how an adversary could exploit identified vulnerabilities step-by-step, mapped to MITRE ATT&CK techniques.
+            </p>
+            <AttackScenarioView
+              scenarios={result.attackScenarios ?? []}
+              threats={result.threats}
+            />
           </div>
         )}
 
