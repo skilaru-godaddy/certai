@@ -1,3 +1,10 @@
+export interface Remediation {
+  description: string;
+  codeExample?: string;
+  file?: string;
+  effort: 'Low' | 'Medium' | 'High';
+}
+
 export interface ThreatItem {
   component: string;
   threat: string;
@@ -11,6 +18,7 @@ export interface ThreatItem {
   mitreAttackTactic?: string;        // e.g. "Initial Access"
   mitreAttackTechnique?: string;     // e.g. "Exploit Public-Facing Application"
   mitreAttackTechniqueId?: string;   // e.g. "T1190"
+  remediation?: Remediation;
 }
 
 export interface QuestionnaireItem {
