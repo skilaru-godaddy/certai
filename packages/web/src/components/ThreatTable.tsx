@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ThreatItem } from '../types.js';
 
 const IMPACT_STYLES: Record<string, string> = {
@@ -13,11 +14,19 @@ const LIKELIHOOD_COLOR: Record<string, string> = {
   Low:    'text-green-600',
 };
 
+const EFFORT_STYLES: Record<string, string> = {
+  Low:    'bg-green-50 text-green-700 border-green-200',
+  Medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  High:   'bg-red-50 text-red-700 border-red-200',
+};
+
 interface Props {
   threats: ThreatItem[];
 }
 
 export function ThreatTable({ threats }: Props) {
+  const [expandedFix, setExpandedFix] = useState<number | null>(null);
+
   if (!threats.length) {
     return (
       <div className="text-center py-12 bg-[#F5F7F8] border border-[#D4DBE0] rounded-2xl">
@@ -69,6 +78,43 @@ export function ThreatTable({ threats }: Props) {
                 )}
                 <code className="text-[12px] text-[#444] font-mono">{t.codeEvidence}</code>
               </div>
+
+              {/* Remediation panel */}
+              {t.remediation && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setExpandedFix(expandedFix === i ? null : i)}
+                    className="flex items-center gap-1.5 text-[12px] text-teal-700 hover:text-teal-900 font-medium transition-colors"
+                  >
+                    <span className={`transition-transform duration-150 ${expandedFix === i ? 'rotate-90' : ''}`}>▶</span>
+                    How to fix
+                    <span className={`text-[11px] font-semibold border px-1.5 py-0.5 rounded-[6px] ml-1 ${EFFORT_STYLES[t.remediation.effort] ?? EFFORT_STYLES['Medium']}`}>
+                      {t.remediation.effort} effort
+                    </span>
+                  </button>
+
+                  {expandedFix === i && (
+                    <div className="mt-2 bg-teal-50/50 border border-teal-200 rounded-xl p-4 space-y-3">
+                      <p className="text-[13px] text-[#333] leading-relaxed">{t.remediation.description}</p>
+
+                      {t.remediation.file && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-[#666]">File:</span>
+                          <code className="text-[12px] text-teal-800 font-mono bg-teal-100/60 px-2 py-0.5 rounded-[6px]">
+                            {t.remediation.file}
+                          </code>
+                        </div>
+                      )}
+
+                      {t.remediation.codeExample && (
+                        <pre className="text-[12px] text-[#333] bg-white border border-teal-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
+                          {t.remediation.codeExample}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

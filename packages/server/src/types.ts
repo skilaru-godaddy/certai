@@ -119,6 +119,13 @@ export interface SupplyChainRisk {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+export interface Remediation {
+  description: string;
+  codeExample?: string;
+  file?: string;
+  effort: 'Low' | 'Medium' | 'High';
+}
+
 export interface SemgrepFinding {
   rule: string;
   severity: string;

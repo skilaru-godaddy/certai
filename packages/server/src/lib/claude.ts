@@ -105,7 +105,13 @@ Return a valid JSON object with exactly these fields:
       "owaspCategory": "<OWASP Top 10 2021 category, e.g. 'A01:2021 – Broken Access Control'>",
       "mitreAttackTactic": "string — e.g. 'Initial Access'",
       "mitreAttackTechnique": "string — e.g. 'Exploit Public-Facing Application'",
-      "mitreAttackTechniqueId": "string — e.g. 'T1190'"
+      "mitreAttackTechniqueId": "string — e.g. 'T1190'",
+      "remediation": {
+        "description": "string — concrete fix action, e.g. 'Replace string concatenation with parameterized query using $1 placeholders'",
+        "codeExample": "string (optional) — before/after code snippet using real code from the repo files. Use '// Before:' and '// After:' labels separated by newlines.",
+        "file": "string (optional) — specific file that needs the change, e.g. 'src/routes/users.ts'",
+        "effort": "Low | Medium | High"
+      }
     }
   ],
 
@@ -267,6 +273,13 @@ Estimate for the top 3 highest-severity threats. Be conservative with ALE ranges
 ## Compliance Gap Assessment:
 Check against PCI DSS v4, SOC 2 Type II, ISO 27001:2022, and GoDaddy CAT criteria.
 Focus on controls that are clearly pass/fail from the code.
+
+## Remediation rules:
+For each threat, provide a "remediation" object with a concrete fix:
+- "description": specific action to take, not vague advice (e.g. "Add helmet middleware to Express app" not "improve security headers")
+- "codeExample": show before/after code using the ACTUAL code from the repo files above. Use "// Before:" and "// After:" labels. Omit if the fix is configuration-only or non-code.
+- "file": the specific file path that needs the change. Omit only if the fix spans many files.
+- "effort": "Low" = < 1 hour, "Medium" = 1 day, "High" = multi-day refactor
 
 ## Questionnaire confidence rules:
 - "Confirmed": you can point to a specific line of code
