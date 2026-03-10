@@ -1,6 +1,59 @@
 import type { CveFinding, SbomComponent } from '../types.js';
 import type { RepoFile } from '../types.js';
 
+// ─── VEX document generation ──────────────────────────────────────────────────
+
+export interface VexDocument {
+  bomFormat: 'CycloneDX';
+  specVersion: string;
+  version: number;
+  metadata: { timestamp: string; tools: Array<{ vendor: string; name: string }> };
+  vulnerabilities: Array<{
+    id: string;
+    source: { url: string };
+    affects: Array<{ ref: string }>;
+    analysis: {
+      state: 'exploitable' | 'not_affected' | 'in_triage' | 'resolved';
+      justification?: string;
+    };
+  }>;
+}
+
+export function generateVexDocument(
+  sbom: SbomComponent[],
+  cveFindings: CveFinding[]
+): VexDocument {
+  const purlMap = new Map(sbom.map((c) => [c.name, c.purl]));
+
+  const vulnerabilities = cveFindings.map((finding) => {
+    const purl = purlMap.get(finding.packageName) ?? `pkg:generic/${finding.packageName}@${finding.version}`;
+    const state: VexDocument['vulnerabilities'][0]['analysis']['state'] =
+      finding.reachable === false ? 'not_affected' : 'exploitable';
+    const justification =
+      finding.reachable === false
+        ? 'vulnerable_code_not_in_execute_path'
+        : undefined;
+
+    return {
+      id: finding.vulnId,
+      source: { url: `https://osv.dev/vulnerability/${finding.vulnId}` },
+      affects: [{ ref: purl }],
+      analysis: { state, ...(justification ? { justification } : {}) },
+    };
+  });
+
+  return {
+    bomFormat: 'CycloneDX',
+    specVersion: '1.4',
+    version: 1,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      tools: [{ vendor: 'GoDaddy', name: 'CertAI' }],
+    },
+    vulnerabilities,
+  };
+}
+
 // ─── Dependency parsing ───────────────────────────────────────────────────────
 
 export function parseDependencies(files: RepoFile[]): SbomComponent[] {
