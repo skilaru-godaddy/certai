@@ -1,9 +1,12 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 // ─── Per-repo score history ────────────────────────────────────────────────────
 
-const HISTORY_DIR = join(process.cwd(), '.certai-history');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = join(__dirname, '..', '..');
+const HISTORY_DIR = join(PKG_ROOT, '.certai-history');
 if (!existsSync(HISTORY_DIR)) mkdirSync(HISTORY_DIR, { recursive: true });
 
 export interface HistoryEntry {

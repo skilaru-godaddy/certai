@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { fetchRepoSnapshot, fetchSpecificFiles, fetchDependabotAlerts, fetchCodeScanningAlerts } from './github.js';
 import { streamAnalysis, triageFiles } from './claude.js';
 import { parseRepoUrl } from './github.js';
@@ -19,7 +20,9 @@ import { appendHistoryEntry, repoKeyFromUrl } from './history.js';
 
 // ─── Job persistence ──────────────────────────────────────────────────────────
 
-const JOBS_DIR = join(process.cwd(), '.certai-jobs');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = join(__dirname, '..', '..');
+const JOBS_DIR = join(PKG_ROOT, '.certai-jobs');
 if (!existsSync(JOBS_DIR)) mkdirSync(JOBS_DIR, { recursive: true });
 
 function persistJob(job: Job): void {
