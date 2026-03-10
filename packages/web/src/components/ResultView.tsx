@@ -35,6 +35,8 @@ interface Props {
   publishing: boolean;
   jobId?: string;
   createdAt?: Date;
+  publishedLinks?: { pageUrl: string } | null;
+  publishError?: string | null;
 }
 
 function downloadSbom(components: SbomComponent[], repoUrl: string) {
@@ -121,7 +123,7 @@ async function downloadFastTrack(jobId: string | undefined) {
   }
 }
 
-export function ResultView({ result, repoUrl, onPublish, publishing, jobId, createdAt }: Props) {
+export function ResultView({ result, repoUrl, onPublish, publishing, jobId, createdAt, publishedLinks, publishError }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [space, setSpace] = useState('SECARCH');
 
@@ -714,11 +716,33 @@ export function ResultView({ result, repoUrl, onPublish, publishing, jobId, crea
 
       {/* Publish panel */}
       <div className="bg-[#F5F7F8] border border-[#D4DBE0] rounded-2xl p-6">
+        {publishedLinks && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs">✓</div>
+                <p className="text-green-800 font-medium text-[13px]">Published to Confluence</p>
+              </div>
+              <a href={publishedLinks.pageUrl} target="_blank" rel="noreferrer"
+                 className="text-[13px] bg-white hover:bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-[6px] transition-colors">
+                View page →
+              </a>
+            </div>
+            <a href={publishedLinks.pageUrl} target="_blank" rel="noreferrer"
+               className="block mt-2 ml-8 text-[12px] text-green-600 hover:text-green-800 underline truncate">
+              {publishedLinks.pageUrl}
+            </a>
+          </div>
+        )}
+        {publishError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-xs">✕</div>
+            <p className="text-red-700 text-[13px]">{publishError}</p>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-6 flex-wrap">
           <div>
-            {/* <h3 className="text-[#111] font-semibold text-[15px]">Publish to Confluence + Jira</h3> */}
             <h3 className="text-[#111] font-semibold text-[15px]">Publish to Confluence</h3>
-            {/* <p className="text-[#666] text-[13px] mt-0.5">Creates a Confluence page and links a Jira ticket in one click</p> */}
             <p className="text-[#666] text-[13px] mt-0.5">Creates a Confluence page in one click</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

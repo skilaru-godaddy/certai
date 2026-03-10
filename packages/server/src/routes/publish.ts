@@ -27,6 +27,7 @@ export async function publishRoutes(app: FastifyInstance) {
 
         return { pageUrl };
       } catch (err) {
+        req.log.error(err, 'Publish to Confluence failed');
         return reply.status(500).send({ error: String(err) });
       }
     }

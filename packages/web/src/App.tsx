@@ -44,16 +44,28 @@ export default function App() {
     setLoading(false);
   }
 
+  const [publishError, setPublishError] = useState<string | null>(null);
+
   async function handlePublish(space: string) {
     setPublishing(true);
-    const res = await fetch('/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId, space }),
-    });
-    const data = await res.json();
-    setPublishing(false);
-    if (data.pageUrl) setPublishedLinks(data);
+    setPublishError(null);
+    try {
+      const res = await fetch('/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, space }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPublishError(data.error ?? `Publish failed (HTTP ${res.status})`);
+      } else if (data.pageUrl) {
+        setPublishedLinks(data);
+      }
+    } catch (err) {
+      setPublishError(`Publish failed: ${err}`);
+    } finally {
+      setPublishing(false);
+    }
   }
 
   const handleResult = useCallback((r: AnalysisResult) => setResult(r), []);
@@ -181,6 +193,8 @@ export default function App() {
             publishing={publishing}
             jobId={jobId ?? undefined}
             createdAt={jobCreatedAt}
+            publishedLinks={publishedLinks}
+            publishError={publishError}
           />
         )}
       </div>
