@@ -16,12 +16,16 @@ export async function publishRoutes(app: FastifyInstance) {
 
       try {
         const { pageUrl } = await publishToConfluence(space, job.repoUrl, job.result);
-        const { ticketKey, ticketUrl } = await createJiraTicket(
-          job.repoUrl,
-          job.result,
-          pageUrl
-        );
-        return { pageUrl, ticketKey, ticketUrl };
+
+        // JIRA TICKET CREATION DISABLED
+        // const { ticketKey, ticketUrl } = await createJiraTicket(
+        //   job.repoUrl,
+        //   job.result,
+        //   pageUrl
+        // );
+        // return { pageUrl, ticketKey, ticketUrl };
+
+        return { pageUrl };
       } catch (err) {
         return reply.status(500).send({ error: String(err) });
       }

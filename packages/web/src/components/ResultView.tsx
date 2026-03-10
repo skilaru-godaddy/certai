@@ -716,8 +716,10 @@ export function ResultView({ result, repoUrl, onPublish, publishing, jobId, crea
       <div className="bg-[#F5F7F8] border border-[#D4DBE0] rounded-2xl p-6">
         <div className="flex items-center justify-between gap-6 flex-wrap">
           <div>
-            <h3 className="text-[#111] font-semibold text-[15px]">Publish to Confluence + Jira</h3>
-            <p className="text-[#666] text-[13px] mt-0.5">Creates a Confluence page and links a Jira ticket in one click</p>
+            {/* <h3 className="text-[#111] font-semibold text-[15px]">Publish to Confluence + Jira</h3> */}
+            <h3 className="text-[#111] font-semibold text-[15px]">Publish to Confluence</h3>
+            {/* <p className="text-[#666] text-[13px] mt-0.5">Creates a Confluence page and links a Jira ticket in one click</p> */}
+            <p className="text-[#666] text-[13px] mt-0.5">Creates a Confluence page in one click</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             {/* Fast Track export */}

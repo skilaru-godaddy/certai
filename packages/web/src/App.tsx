@@ -156,7 +156,7 @@ export default function App() {
               <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-sm">✓</div>
               <div>
                 <p className="text-green-800 font-semibold text-[14px]">Published successfully</p>
-                <p className="text-green-600 text-[13px]">Confluence page created · Jira ticket {publishedLinks.ticketKey}</p>
+                <p className="text-green-600 text-[13px]">Confluence page created{/* · Jira ticket {publishedLinks.ticketKey}*/}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -164,10 +164,10 @@ export default function App() {
                  className="text-[13px] bg-white hover:bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-[6px] transition-colors">
                 View in Confluence →
               </a>
-              <a href={publishedLinks.ticketUrl} target="_blank" rel="noreferrer"
+              {/* <a href={publishedLinks.ticketUrl} target="_blank" rel="noreferrer"
                  className="text-[13px] bg-white hover:bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-[6px] transition-colors">
                 {publishedLinks.ticketKey} →
-              </a>
+              </a> */}
             </div>
           </div>
         )}
