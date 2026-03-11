@@ -15,7 +15,8 @@ export function createClaudeClient() {
 export function buildAnalysisPrompt(
   snapshot: RepoSnapshot,
   cveScanResults?: CveFinding[],
-  secretScanFindings?: SecretFinding[]
+  secretScanFindings?: SecretFinding[],
+  userInput?: string
 ): string {
   const fileBlocks = snapshot.priorityFiles
     .map((f) => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``)
@@ -38,10 +39,16 @@ export function buildAnalysisPrompt(
     prebuiltContext += `\n\n## DETECTED SECRETS IN CODE (use this for Q10 answer):\n${secretLines}`;
   }
 
+  const featureContext = userInput?.trim()
+    ? `\n\n## USER CONTEXT (feature/module focus):\n${userInput.trim()}`
+    : '';
+
   return `You are a GoDaddy security engineer performing a security certification analysis.
 
 ## Repo: ${snapshot.ref.owner}/${snapshot.ref.repo}
 Host: ${snapshot.ref.host}
+Branch: ${snapshot.branch}
+Commit: ${snapshot.commitSha}${featureContext}
 
 ## Full file tree (first 60 paths):
 ${snapshot.treeText}
@@ -346,10 +353,11 @@ export interface AnalysisChunk {
 export async function* streamAnalysis(
   snapshot: RepoSnapshot,
   cveScanResults?: CveFinding[],
-  secretScanFindings?: SecretFinding[]
+  secretScanFindings?: SecretFinding[],
+  userInput?: string
 ): AsyncGenerator<AnalysisChunk> {
   const client = createClaudeClient();
-  const prompt = buildAnalysisPrompt(snapshot, cveScanResults, secretScanFindings);
+  const prompt = buildAnalysisPrompt(snapshot, cveScanResults, secretScanFindings, userInput);
 
   try {
     const stream = await client.messages.stream({

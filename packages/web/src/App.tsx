@@ -5,6 +5,8 @@ import type { AnalysisResult } from './types.js';
 
 export default function App() {
   const [repoUrl, setRepoUrl] = useState('');
+  const [branch, setBranch] = useState('main');
+  const [userInput, setUserInput] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobCreatedAt, setJobCreatedAt] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -21,6 +23,8 @@ export default function App() {
       .then((r) => r.json())
       .then((data) => {
         if (data.repoUrl) setRepoUrl(data.repoUrl);
+        if (data.branch) setBranch(data.branch);
+        if (data.userInput) setUserInput(data.userInput);
         if (data.createdAt) setJobCreatedAt(new Date(data.createdAt));
         if (data.status === 'done' && data.result) setResult(data.result);
       });
@@ -36,7 +40,7 @@ export default function App() {
     const res = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repoUrl }),
+      body: JSON.stringify({ repoUrl, branch, userInput }),
     });
     const data = await res.json();
     setJobId(data.jobId);
@@ -94,36 +98,58 @@ export default function App() {
             </div>
           )}
 
-          <form onSubmit={handleAnalyze} className="flex gap-3">
-            <div className="flex-1">
+          <form onSubmit={handleAnalyze} className="space-y-3">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  placeholder="https://github.secureserver.net/org/repo-name"
+                  className="w-full bg-white border border-[#D6D6D6] rounded-[6px] px-4 py-3
+                             text-[#111] placeholder-[#999] text-[14px] font-mono
+                             focus:outline-none focus:border-[#111] focus:ring-2 focus:ring-[#111]/10
+                             transition-colors"
+                />
+              </div>
               <input
                 type="text"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                placeholder="https://github.secureserver.net/org/repo-name"
-                className="w-full bg-white border border-[#D6D6D6] rounded-[6px] px-4 py-3
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                placeholder="main"
+                className="w-[180px] bg-white border border-[#D6D6D6] rounded-[6px] px-3 py-3
                            text-[#111] placeholder-[#999] text-[14px] font-mono
                            focus:outline-none focus:border-[#111] focus:ring-2 focus:ring-[#111]/10
                            transition-colors"
               />
-            </div>
-            <button
-              type="submit"
-              disabled={loading || !repoUrl.trim()}
-              className="bg-[#111] hover:bg-[#333] active:bg-[#000]
+              <button
+                type="submit"
+                disabled={loading || !repoUrl.trim()}
+                className="bg-[#111] hover:bg-[#333] active:bg-[#000]
                          disabled:opacity-40 disabled:cursor-not-allowed
                          text-white font-medium px-6 py-3 rounded-[6px]
                          transition-all duration-150 whitespace-nowrap text-[14px]"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Starting...
-                </span>
-              ) : (
-                'Analyze →'
-              )}
-            </button>
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Starting...
+                  </span>
+                ) : (
+                  'Analyze →'
+                )}
+              </button>
+            </div>
+            <textarea
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="Optional context: e.g. focus on recently added billing webhook module"
+              rows={3}
+              className="w-full bg-white border border-[#D6D6D6] rounded-[6px] px-4 py-3
+                         text-[#111] placeholder-[#999] text-[13px]
+                         focus:outline-none focus:border-[#111] focus:ring-2 focus:ring-[#111]/10
+                         transition-colors resize-y"
+            />
           </form>
 
           {!result && !isAnalyzing && (

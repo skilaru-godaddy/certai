@@ -3,12 +3,18 @@ import { createJob, startAnalysis, getJob, JobStatus } from '../lib/analyzer.js'
 
 export async function analyzeRoutes(app: FastifyInstance) {
   // POST /analyze  — creates a job and starts analysis
-  app.post<{ Body: { repoUrl: string } }>('/analyze', async (req, reply) => {
-    const { repoUrl } = req.body;
+  app.post<{ Body: { repoUrl: string; branch?: string; userInput?: string } }>('/analyze', async (req, reply) => {
+    const { repoUrl, branch, userInput } = req.body;
     if (!repoUrl?.trim()) {
       return reply.status(400).send({ error: 'repoUrl is required' });
     }
-    const job = createJob(repoUrl.trim());
+    const normalizedBranch = branch?.trim() ? branch.trim() : 'main';
+    const normalizedUserInput = userInput?.trim() ? userInput.trim() : '';
+    const job = createJob({
+      repoUrl: repoUrl.trim(),
+      branch: normalizedBranch,
+      userInput: normalizedUserInput,
+    });
     startAnalysis(job.id);
     return { jobId: job.id };
   });
@@ -68,7 +74,11 @@ export async function analyzeRoutes(app: FastifyInstance) {
     return {
       id: job.id,
       repoUrl: job.repoUrl,
+      branch: job.branch,
+      commitId: job.commitId,
+      userInput: job.userInput,
       status: job.status,
+      createdAt: job.createdAt,
       result: job.result,
       error: job.error,
     };
