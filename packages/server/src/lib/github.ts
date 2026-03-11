@@ -53,7 +53,7 @@ export function createGitHubClient(pat: string, baseUrl: string) {
   });
 }
 
-export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
+export async function fetchRepoSnapshot(ref: RepoRef, branch = 'main'): Promise<RepoSnapshot> {
   const pat = process.env.GITHUB_PAT!;
   const baseUrl = process.env.GITHUB_API_URL!;
   const octokit = createGitHubClient(pat, baseUrl);
@@ -62,7 +62,7 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
   const { data: commit } = await octokit.repos.getCommit({
     owner: ref.owner,
     repo: ref.repo,
-    ref: 'HEAD',
+    ref: branch,
   });
   const treeSha = commit.commit.tree.sha;
 
@@ -87,6 +87,7 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
           owner: ref.owner,
           repo: ref.repo,
           path,
+          ref: branch,
         });
         if (Array.isArray(data) || data.type !== 'file') {
           return { path, content: '[directory or non-file]', sizeBytes: 0 };
@@ -109,7 +110,7 @@ export async function fetchRepoSnapshot(ref: RepoRef): Promise<RepoSnapshot> {
   // Human-readable tree (up to 500 paths for Claude triage pass)
   const treeText = allPaths.slice(0, 500).join('\n');
 
-  return { ref, allPaths, priorityFiles, treeText };
+  return { ref, branch, commitSha: commit.sha, allPaths, priorityFiles, treeText };
 }
 
 export async function fetchDependabotAlerts(ref: RepoRef): Promise<CveFinding[]> {
@@ -185,7 +186,7 @@ export async function fetchCodeScanningAlerts(ref: RepoRef): Promise<SemgrepFind
   }
 }
 
-export async function fetchSpecificFiles(ref: RepoRef, paths: string[]): Promise<RepoFile[]> {
+export async function fetchSpecificFiles(ref: RepoRef, paths: string[], branch = 'main'): Promise<RepoFile[]> {
   const pat = process.env.GITHUB_PAT!;
   const baseUrl = process.env.GITHUB_API_URL!;
   const octokit = createGitHubClient(pat, baseUrl);
@@ -193,7 +194,7 @@ export async function fetchSpecificFiles(ref: RepoRef, paths: string[]): Promise
   return Promise.all(
     paths.map(async (path): Promise<RepoFile> => {
       try {
-        const { data } = await octokit.repos.getContent({ owner: ref.owner, repo: ref.repo, path });
+        const { data } = await octokit.repos.getContent({ owner: ref.owner, repo: ref.repo, path, ref: branch });
         if (Array.isArray(data) || data.type !== 'file') {
           return { path, content: '[directory or non-file]', sizeBytes: 0 };
         }

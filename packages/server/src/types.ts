@@ -12,6 +12,8 @@ export interface RepoFile {
 
 export interface RepoSnapshot {
   ref: RepoRef;
+  branch: string;
+  commitSha: string;
   allPaths: string[];          // full file tree
   priorityFiles: RepoFile[];   // top 14 security-relevant files
   treeText: string;            // human-readable tree for Claude
